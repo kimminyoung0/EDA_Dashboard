@@ -1,4 +1,5 @@
 reports/
-reports_item_cd/
+reports_itemcd_col/
 feature_filters/
 data/
+.DS_Store
