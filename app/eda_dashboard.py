@@ -15,6 +15,7 @@ from eda_modules.class_balance_check import check_class_balance
 from eda_modules.value_distribution import plot_value_distributions_by_item
 from eda_modules.filters import filter_dataframe
 from eda_modules.value_counts import show_value_counts
+import streamlit.components.v1 as components 
 
 # 제외할 컬럼 저장 및 불러오기(json)
 def save_filter_config(filtered_vars, path):
@@ -34,7 +35,7 @@ def sanitize_object_columns(df):
     return df
 
 # GA4 태그 삽입
-st.markdown("""
+components.html("""
 <!-- Google tag (gtag.js) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-34GY62HL58"></script>
 <script>
@@ -43,7 +44,7 @@ st.markdown("""
   gtag('js', new Date());
   gtag('config', 'G-34GY62HL58');
 </script>
-""", unsafe_allow_html=True)
+""", height=0)
 
 
 # set_page_config: 앱의 초기 페이지 설정을 지정하는 함수
