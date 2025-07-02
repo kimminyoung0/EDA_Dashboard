@@ -33,6 +33,19 @@ def sanitize_object_columns(df):
         df[col] = df[col].astype(str).replace("nan", "")
     return df
 
+# GA4 태그 삽입
+st.markdown("""
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-34GY62HL58"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-34GY62HL58');
+</script>
+""", unsafe_allow_html=True)
+
+
 # set_page_config: 앱의 초기 페이지 설정을 지정하는 함수
 st.set_page_config(page_title="EDA Dashboard", layout="wide", #layout = centered
                     menu_items={
