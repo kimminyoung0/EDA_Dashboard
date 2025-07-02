@@ -87,7 +87,7 @@ if uploaded_file:
     # FILTER_PATH = f"feature_filters/filter_config_{data_name}.json"
     # stored_filters = load_filter_config(FILTER_PATH)
     #제외할 컬럼 필터 불러오기
-    Ffilter_dir = "feature_filters"
+    filter_dir = "feature_filters"
     os.makedirs(filter_dir, exist_ok=True)
     FILTER_PATH = os.path.join(filter_dir, f"filter_config_{data_name}.json")
 
