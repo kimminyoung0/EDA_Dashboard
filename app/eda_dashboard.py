@@ -90,6 +90,7 @@ if uploaded_file:
     filter_dir = "feature_filters"
     os.makedirs(filter_dir, exist_ok=True)
     FILTER_PATH = os.path.join(filter_dir, f"filter_config_{data_name}.json")
+    stored_filters = load_filter_config(FILTER_PATH)
 
     # 변수 유형 분류
     var_types = split_variable_types(df)
