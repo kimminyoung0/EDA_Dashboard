@@ -1,16 +1,19 @@
-import pandas as pd
+import os
 import matplotlib.pyplot as plt
 import seaborn as sns
-import os
+import pandas as pd
 
 
-def plot_value_distributions_by_item(df, cols, item_col="ITEM_CD", save_dir=None, color="skyblue"):
+def plot_value_distributions(df, cols, item_col=None, save_dir=None, color="skyblue"):
     if save_dir:
         os.makedirs(save_dir, exist_ok=True)
     saved_paths = []
 
-    for item, group_df in df.groupby(item_col):
-        item_dir = os.path.join(save_dir, str(item))
+    groups = [(None, df)] if item_col is None else df.groupby(item_col)
+
+    for item, group_df in groups:
+        group_name = "all" if item is None else str(item)
+        item_dir = os.path.join(save_dir, group_name)
         os.makedirs(item_dir, exist_ok=True)
 
         for col in cols:
@@ -18,7 +21,7 @@ def plot_value_distributions_by_item(df, cols, item_col="ITEM_CD", save_dir=None
 
             if os.path.exists(img_path):
                 saved_paths.append(img_path)
-                continue  # ✅ 이미지가 이미 있으면 재사용
+                continue
 
             plt.figure(figsize=(8, 4))
             if pd.api.types.is_numeric_dtype(group_df[col]):
@@ -31,7 +34,7 @@ def plot_value_distributions_by_item(df, cols, item_col="ITEM_CD", save_dir=None
                     continue
                 value_counts.plot(kind='bar', color=color)
 
-            plt.title(f"{item} - Distribution of {col}")
+            plt.title(f"{group_name} - Distribution of {col}")
             plt.tight_layout()
             plt.savefig(img_path, facecolor='white')
             plt.close()
