@@ -7,11 +7,11 @@ def split_variable_types(df: pd.DataFrame, datetime_threshold=10):
     for col in df.columns:
         if col not in datetime_cols and df[col].dtype == "object":
             try:
-                parsed = pd.to_datetime(df[col], errors="raise")
-                if parsed.nunique() > datetime_threshold:
-                    datetime_cols.append(col)
-            except:
-                continue
+                parsed = pd.to_datetime(df[col], format="%Y-%m-%d", errors="raise")
+            except Exception:
+                parsed = pd.to_datetime(df[col], errors="coerce")
+            if parsed.nunique() > datetime_threshold:
+                datetime_cols.append(col)
 
     # 순서 유지하면서 분류
     categorical_cols = [col for col in df.columns 
@@ -25,3 +25,7 @@ def split_variable_types(df: pd.DataFrame, datetime_threshold=10):
         "categorical": categorical_cols,
         "numerical": numerical_cols
     }
+
+
+
+
