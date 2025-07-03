@@ -1,4 +1,4 @@
-import sys, os, json
+import sys, os, json, re
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -10,9 +10,9 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from eda_modules.variable_type_splitter import split_variable_types
 from eda_modules.describe_by_type import describe_by_type
 from eda_modules.correlation_matrix import plot_correlation_matrix
-from eda_modules.outlier_detection import plot_outliers_by_item
+from eda_modules.outlier_detection import plot_outliers_boxplot, plot_outliers_iqr_custom, plot_outliers_zscore_custom
 from eda_modules.class_balance_check import check_class_balance
-from eda_modules.value_distribution import plot_value_distributions_by_item
+from eda_modules.value_distribution import plot_value_distributions
 from eda_modules.filters import filter_dataframe
 from eda_modules.value_counts import show_value_counts
 import streamlit.components.v1 as components 
@@ -33,6 +33,10 @@ def sanitize_object_columns(df):
     for col in df.select_dtypes(include='object').columns:
         df[col] = df[col].astype(str).replace("nan", "")
     return df
+
+def sanitize_filename(name: str) -> str:
+    # Windows에서 사용할 수 없는 문자를 ''로 대체
+    return re.sub(r'[\\/*?:"<>|]', "", str(name))
 
 # GA4 태그 삽입
 components.html("""
@@ -82,8 +86,8 @@ if uploaded_file:
     st.success(f"✅ 파일 업로드 완료: {uploaded_file.name}")
 
     st.title(f"📊 {data_name}")
-
-    st.set_page_config(page_title = data_name, layout="wide", #layout = centered
+    data_title = "_".join(data_name.split("_")[3:])
+    st.set_page_config(page_title = data_title, layout="wide", #layout = centered
                     menu_items={
                         'Get Help': 'https://github.com/kimminyoung0',
                         'Report a bug': 'https://github.com/kimminyoung0/issues',
@@ -97,9 +101,6 @@ if uploaded_file:
     os.makedirs(outlier_dir, exist_ok=True)
     os.makedirs(dist_dir, exist_ok=True)
 
-    #제외할 컬럼 필터 불러오기
-    # FILTER_PATH = f"feature_filters/filter_config_{data_name}.json"
-    # stored_filters = load_filter_config(FILTER_PATH)
     #제외할 컬럼 필터 불러오기
     filter_dir = "feature_filters"
     os.makedirs(filter_dir, exist_ok=True)
@@ -167,68 +168,105 @@ if uploaded_file:
         st.dataframe(describe_result["categorical"])
     
     # 변수별 개수 확인 - 1개나 2개의 변수로 groupby해 개수 확인
+    #num_cols = describe_result["numerical"].index.tolist() if isinstance(describe_result["numerical"], pd.DataFrame) else []
+    #cat_cols = describe_result["categorical"].index.tolist() if isinstance(describe_result["categorical"], pd.DataFrame) else []
     show_value_counts(df)
 
-    with st.expander("🎨 이상치 boxplot 색상 설정"):
-        selected_color_outlier = st.selectbox("시각화 색상 선택", options=["skyblue", "orange", "green", "red", "purple", "black", "deepskyblue", "limegreen", "seagreen", "gray", "pink"], index=0)
-
     # 이상치 분포 시각화
-    st.subheader("📦 수치형 변수 이상치 분포 (ITEM_CD별)")
-    if st.toggle("📦 이상치 시각화 보기", value=False):
-        item_list = df["ITEM_CD"].dropna().unique().tolist()
-        outlier_dir = f"reports/{data_name}/outliers_by_item"
-        os.makedirs(outlier_dir, exist_ok=True)
+    st.subheader("🔍 이상치 분포 (boxplot) 시각화")
+    outlier_method = st.selectbox("🧪 이상치 탐지 방식 선택", ["Boxplot(기본 IQR)", "Z-Score", "IQR"])
+    with st.expander("🎨 이상치 boxplot 색상 설정"):
+        selected_color_outlier = st.selectbox(
+            "시각화 색상 선택",
+            options=["skyblue", "orange", "green", "red", "purple", "black", "deepskyblue", "limegreen", "seagreen", "gray", "pink"],
+            index=0,
+            key="color_outlier"
+        )
+
+    # 범주형 변수 선택 (그룹화 기준)
+    selected_groupby_col = st.selectbox("📑 이상치를 그룹화할 기준 범주형 변수 선택 (미선택 가능)", options=["선택 안함"] + categorical_cols, key="selectbox_outlier_group"
+    )
+    base_dir = "outlier_imgs"
+    method_dir = {
+        "Boxplot(기본 IQR)": "boxplot",
+        "Z-Score": "zscore",
+        "IQR": "iqr"
+    }[outlier_method]
+
+    if st.toggle("📦 이상치 시각화 보기", value=False, key=f"toggle_outlier_{selected_groupby_col}"):
+        is_grouped = selected_groupby_col != "선택 안함"
         
-        selected_item_outlier = st.selectbox("🔍 확인할 금형 선택", options=item_list, key="selectbox_outlier")
-        st.markdown("""
-            <style>
-            .stMultiSelect > div {
-                max-height: none;
-                overflow-y: visible;
-            }
-            .stMultiSelect div[role="listbox"] {
-                flex-wrap: wrap;
-                max-height: 600px;
-            }
-            .stMultiSelect span {
-                white-space: nowrap;
-                overflow: visible;
-                text-overflow: unset !important;
-                max-width: none !important;
-            }
-            </style>
-        """, unsafe_allow_html=True)
+        # 그룹 값 선택
+        if is_grouped:
+            group_values = df[selected_groupby_col].dropna().unique().tolist()
+            selected_group_value = st.selectbox("🔍 확인할 값 선택", options=group_values, key="selectbox_outlier_value")
+            df_selected = df[df[selected_groupby_col] == selected_group_value]
+            save_dir = f"reports/{data_name}/outliers_by_{selected_groupby_col}/{method_dir}/"
+            item_name = selected_group_value
+        else:
+            df_selected = df
+            save_dir = f"reports/{data_name}/outliers_all/{method_dir}/"
+            item_name = "all"
 
-        selected_cols_outlier = st.multiselect("🎯 시각화할 수치형 변수 선택", options=filtered_var_types["numerical"], default=filtered_var_types["numerical"])
-        if selected_item_outlier and selected_cols_outlier:
-            df_selected = df[df["ITEM_CD"] == selected_item_outlier]
-            item_dir = os.path.join(outlier_dir, str(selected_item_outlier))
+        # 시각화할 변수 선택
+        selected_num_cols = st.multiselect(
+            "🎯 시각화할 수치형 변수 선택",
+            options=filtered_var_types["numerical"],
+            default=filtered_var_types["numerical"],
+            key="selectbox_outlier_columns"
+        )
+
+        if selected_num_cols:
+            item_safe = re.sub(r'[\\/*?:"<>|]', "", str(item_name))
+            item_dir = os.path.join(save_dir, item_safe)
+            os.makedirs(item_dir, exist_ok=True)
+
             img_paths = []
-            # 📌 1. 이미지가 이미 존재하면 재사용
-            if (
-                os.path.exists(item_dir)
-                and any(fname.endswith(f"_boxplot_{selected_color_outlier}.png") for fname in os.listdir(item_dir))
-            ):
-                for col in selected_cols_outlier:
-                    fname = f"{col}_boxplot_{selected_color_outlier}.png"
-                    path = os.path.join(item_dir, fname)
-                    if os.path.exists(path):
-                        img_paths.append(path)
-            else:
-                # 📌 2. 이미지 없으면 새로 생성
-                img_paths = plot_outliers_by_item(df_selected, selected_cols_outlier, item_col="ITEM_CD", save_dir=outlier_dir, color=selected_color_outlier)
 
+            if outlier_method == "Boxplot(기본 IQR)":
+                pass
+            elif outlier_method == "Z-Score":
+                z_threshold = st.slider("Z-Score 임계값 (절댓값)", 1.0, 7.0, 3.0, step=1.0, key = f"z_threshold_slider")
+                param_dir = os.path.join(item_dir, f"zthreshold_{z_threshold}")
+            elif outlier_method == "IQR":
+                q1 = st.slider("Q1 백분위 (하위 경계)", 25, 10, 25, step=5, key = f"q1_slider")
+                q3 = st.slider("Q3 백분위 (상위 경계)", 75, 90, 75, step=5, key = f"q3_slider")
+                k = st.slider("IQR 계수 (k)", 1.0, 3.0, 1.5, step=0.1, key = f"k_slider")
+                param_dir = os.path.join(item_dir, f"q1_{q1}_q3_{q3}_k_{k}")
+            os.makedirs(param_dir, exist_ok=True)
+
+            for col in selected_num_cols:
+                print("col", col)
+                img_path = os.path.join(param_dir, f"{col}_boxplot_{selected_color_outlier}.png")
+                if os.path.exists(img_path):
+                    img_paths.append(img_path)
+                else:
+                    # 새로 생성
+                    if outlier_method == "Boxplot(기본 IQR)":
+                        path = plot_outliers_boxplot(df_selected, col, save_path=img_path, color=selected_color_outlier)
+                    elif outlier_method == "Z-Score":
+                        path = plot_outliers_zscore_custom(df_selected, col, z_threshold=z_threshold, save_path=img_path, color=selected_color_outlier)
+                    elif outlier_method == "IQR":
+                        path = plot_outliers_iqr_custom(df_selected, col, save_path=img_path, q1=q1, q3=q3, k=k, color=selected_color_outlier)
+
+                    img_paths.append(path)
+
+            # 이미지 그리드 표시
             num_imgs = len(img_paths)
             n_cols = 1 if num_imgs == 1 else (2 if num_imgs == 2 else 3)
-
             for i in range(0, num_imgs, n_cols):
                 cols = st.columns(n_cols)
                 for j in range(n_cols):
                     if i + j < num_imgs:
                         with cols[j]:
                             st.image(img_paths[i + j], use_container_width=True)
-    
-    
+
+
+    def sanitize_filename(name: str) -> str:
+        return re.sub(r'[\\/*?:"<>|]', "", str(name))
+
+    # KDE 그래프 시각화
+    st.subheader("📊 각 변수 분포 kde 시각화")
     with st.expander("🎨 KDE 그래프 색상 설정"):
         selected_color_kde = st.selectbox(
             "색상 선택", 
@@ -236,43 +274,108 @@ if uploaded_file:
             index=0, 
             key="color_kde"
         )
-    st.subheader("📊 각 변수 분포 시각화 (ITEM_CD별)")
-    if st.toggle("📦 각 변수 분포 kde 시각화 보기", value=False):
-        item_list = df["ITEM_CD"].dropna().unique().tolist()
-        dist_dir = f"reports/{data_name}/distributions_by_item"
-        os.makedirs(dist_dir, exist_ok=True)
 
-        selected_item_dist = st.selectbox("🔍 확인할 금형 선택", options=item_list, key="selectbox_distribution") ###
-        
-        selected_cols_dist = st.multiselect("🎯 시각화할 변수 선택", options=filtered_var_types["numerical"] + filtered_var_types["categorical"], default=filtered_var_types["numerical"] + filtered_var_types["categorical"])
-        
-        if selected_item_dist and selected_cols_dist:
-            df_selected = df[df["ITEM_CD"] == selected_item_dist]
-            item_dir = os.path.join(dist_dir, str(selected_item_dist))
+    # 🔸 그룹 기준 선택
+    selected_groupby_col_kde = st.selectbox("📑 분포를 그룹화할 기준 범주형 변수 선택 (미선택 가능)", options=["선택 안함"] + categorical_cols, key="selectbox_kde_group"
+    )
+
+    if st.toggle("📦 각 변수 분포 kde 시각화 보기", value=False, key="toggle_kde_view"):
+        kde_dir = f"reports/{data_name}/distributions_by_group"
+
+        if selected_groupby_col_kde != "선택 안함":
+            group_values = df[selected_groupby_col_kde].dropna().unique().tolist()
+            selected_value = st.selectbox(f"🔍 확인할 {selected_groupby_col_kde} 값 선택", options=group_values, key="selectbox_kde_value")
+
+            df_selected = df[df[selected_groupby_col_kde] == selected_value]
+            group_dir = os.path.join(kde_dir, f"{selected_groupby_col_kde}_{sanitize_filename(selected_value)}")
+            os.makedirs(group_dir, exist_ok=True)
+        else:
+            df_selected = df.copy()
+            group_dir = os.path.join(kde_dir, "all")
+            os.makedirs(group_dir, exist_ok=True)
+
+        selected_cols_dist = st.multiselect(
+            "🎯 시각화할 변수 선택",
+            options=filtered_var_types["numerical"] + filtered_var_types["categorical"],
+            default=filtered_var_types["numerical"] + filtered_var_types["categorical"],
+            key="selectbox_kde_cols"
+        )
+
+        if selected_cols_dist:
+
             img_paths = []
-
             if (
-                os.path.exists(dist_dir)
-                and any(fname.endswith(f"_distribution_{selected_color_kde}.png") for fname in os.listdir(dist_dir))
+                os.path.exists(group_dir)
+                and any(fname.endswith(f"_distribution_{selected_color_kde}.png") for fname in os.listdir(group_dir))
             ):
                 for col in selected_cols_dist:
                     fname = f"{col}_distribution_{selected_color_kde}.png"
-                    path = os.path.join(item_dir, fname)
+                    path = os.path.join(group_dir, fname)
                     if os.path.exists(path):
                         img_paths.append(path)
             else:
-                # 📌 2. 이미지 없으면 새로 생성
-                img_paths = plot_value_distributions_by_item(df_selected, selected_cols_dist, item_col="ITEM_CD", save_dir=dist_dir, color=selected_color_kde)
+                img_paths = plot_value_distributions(
+                    df_selected,
+                    selected_cols_dist,
+                    item_col=None,
+                    save_dir=group_dir,
+                    color=selected_color_kde
+                )
 
+            # 시각화
             num_imgs = len(img_paths)
             n_cols = 1 if num_imgs == 1 else (2 if num_imgs == 2 else 3)
-
             for i in range(0, num_imgs, n_cols):
                 cols = st.columns(n_cols)
                 for j in range(n_cols):
                     if i + j < num_imgs:
                         with cols[j]:
                             st.image(img_paths[i + j], use_container_width=True)
+
+    # with st.expander("🎨 KDE 그래프 색상 설정"):
+    #     selected_color_kde = st.selectbox(
+    #         "색상 선택", 
+    #         options=["skyblue", "orange", "green", "red", "purple", "black", "deepskyblue", "limegreen", "seagreen", "gray", "pink"], 
+    #         index=0, 
+    #         key="color_kde"
+    #     )
+    # st.subheader("📊 각 변수 분포 kde 시각화")
+    # if st.toggle("📦 각 변수 분포 kde 시각화 보기", value=False):
+    #     item_list = df["ITEM_CD"].dropna().unique().tolist()
+    #     dist_dir = f"reports/{data_name}/distributions_by_item"
+    #     os.makedirs(dist_dir, exist_ok=True)
+
+    #     selected_item_dist = st.selectbox("🔍 확인할 금형 선택", options=item_list, key="selectbox_distribution") ###
+        
+    #     selected_cols_dist = st.multiselect("🎯 시각화할 변수 선택", options=filtered_var_types["numerical"] + filtered_var_types["categorical"], default=filtered_var_types["numerical"] + filtered_var_types["categorical"])
+        
+    #     if selected_item_dist and selected_cols_dist:
+    #         df_selected = df[df["ITEM_CD"] == selected_item_dist]
+    #         item_dir = os.path.join(dist_dir, str(selected_item_dist))
+    #         img_paths = []
+
+    #         if (
+    #             os.path.exists(dist_dir)
+    #             and any(fname.endswith(f"_distribution_{selected_color_kde}.png") for fname in os.listdir(dist_dir))
+    #         ):
+    #             for col in selected_cols_dist:
+    #                 fname = f"{col}_distribution_{selected_color_kde}.png"
+    #                 path = os.path.join(item_dir, fname)
+    #                 if os.path.exists(path):
+    #                     img_paths.append(path)
+    #         else:
+    #             # 📌 2. 이미지 없으면 새로 생성
+    #             img_paths = plot_value_distributions_by_item(df_selected, selected_cols_dist, item_col="ITEM_CD", save_dir=dist_dir, color=selected_color_kde)
+
+    #         num_imgs = len(img_paths)
+    #         n_cols = 1 if num_imgs == 1 else (2 if num_imgs == 2 else 3)
+
+    #         for i in range(0, num_imgs, n_cols):
+    #             cols = st.columns(n_cols)
+    #             for j in range(n_cols):
+    #                 if i + j < num_imgs:
+    #                     with cols[j]:
+    #                         st.image(img_paths[i + j], use_container_width=True)
     
 
     st.subheader("📊 상관관계 분석 (금형별)")
