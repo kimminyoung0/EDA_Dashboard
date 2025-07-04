@@ -2,6 +2,7 @@ import os
 import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
+import re
 
 
 def plot_value_distributions(df, cols, item_col=None, save_dir=None, color="skyblue"):
@@ -13,6 +14,7 @@ def plot_value_distributions(df, cols, item_col=None, save_dir=None, color="skyb
 
     for item, group_df in groups:
         group_name = "all" if item is None else str(item)
+        group_name = re.sub(r'[\\/*?:"<>|]', "", str(group_name))
         item_dir = os.path.join(save_dir, group_name)
         os.makedirs(item_dir, exist_ok=True)
 

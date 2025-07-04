@@ -5,14 +5,14 @@ def show_value_counts(df: pd.DataFrame):
     st.subheader("📊 변수별 빈도 (value_counts)")
 
     with st.expander("🔍 변수 선택하여 빈도 확인"):
-        selected_cols = st.multiselect("🎯 변수 선택 (1~2개)", options=df.columns.tolist(), max_selections=2)
+        selected_cols = st.multiselect("🎯 변수 선택 (1~4개)", options=df.columns.tolist(), max_selections=4)
 
     if not selected_cols:
         st.info("⬅️ 왼쪽에서 하나 이상의 변수를 선택해주세요.")
         return
 
-    if len(selected_cols) > 2:
-        st.warning("⚠️ 최대 두 개 변수까지만 선택 가능합니다.")
+    if len(selected_cols) > 4:
+        st.warning("⚠️ 최대 4개 변수까지만 선택 가능합니다.")
         return
 
     # 그룹별 개수 계산
