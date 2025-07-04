@@ -15,7 +15,10 @@ from eda_modules.class_balance_check import check_class_balance
 from eda_modules.value_distribution import plot_value_distributions
 from eda_modules.filters import filter_dataframe
 from eda_modules.value_counts import show_value_counts
+from eda_modules.categorical_heatmap import plot_cat_matrix
+from eda_modules.null_0_value_check import check_0_value, check_null_value
 import streamlit.components.v1 as components 
+
 
 # 제외할 컬럼 저장 및 불러오기(json)
 def save_filter_config(filtered_vars, path):
@@ -159,7 +162,14 @@ if uploaded_file:
     }
 
     st.subheader("📈 기술 통계 - Describe()")
-    describe_result = describe_by_type(df, filtered_var_types)
+    group_or_not = st.selectbox("🔍 그룹화 여부 선택", options=["그룹화 X", "그룹화"], key="selectbox_describe_group")
+    if group_or_not == "그룹화":
+        group_by_col = st.selectbox("🔍 그룹화할 컬럼 선택", options=filtered_var_types["categorical"], key="selectbox_describe_group_col")
+        grouped_df = df.groupby(group_by_col)
+        describe_result = describe_by_type(grouped_df, filtered_var_types)
+    else:
+        describe_result = describe_by_type(df, filtered_var_types)
+    
     if "numerical" in describe_result:
         st.write("🔢 수치형 변수 통계")
         st.dataframe(describe_result["numerical"])
@@ -280,18 +290,19 @@ if uploaded_file:
     )
 
     if st.toggle("📦 각 변수 분포 kde 시각화 보기", value=False, key="toggle_kde_view"):
-        kde_dir = f"reports/{data_name}/distributions_by_group"
+        kde_dir = f"reports/{data_name}/distributions_by_{selected_groupby_col_kde}"
 
-        if selected_groupby_col_kde != "선택 안함":
+        if selected_groupby_col_kde != "선택 안함": #ITEM_CD별로 시각화하고 싶을 때 
             group_values = df[selected_groupby_col_kde].dropna().unique().tolist()
             selected_value = st.selectbox(f"🔍 확인할 {selected_groupby_col_kde} 값 선택", options=group_values, key="selectbox_kde_value")
 
             df_selected = df[df[selected_groupby_col_kde] == selected_value]
             group_dir = os.path.join(kde_dir, f"{selected_groupby_col_kde}_{sanitize_filename(selected_value)}")
             os.makedirs(group_dir, exist_ok=True)
-        else:
+        else: #전체 데이터로 시각화하고 싶을 때 
             df_selected = df.copy()
             group_dir = os.path.join(kde_dir, "all")
+            print("DEBUGGING: 전체 데이터로 시각화!!!!!!!")
             os.makedirs(group_dir, exist_ok=True)
 
         selected_cols_dist = st.multiselect(
@@ -317,8 +328,8 @@ if uploaded_file:
                 img_paths = plot_value_distributions(
                     df_selected,
                     selected_cols_dist,
-                    item_col=None,
-                    save_dir=group_dir,
+                    item_col=None if selected_groupby_col_kde == "선택 안함" else selected_groupby_col_kde,
+                    save_dir=kde_dir,
                     color=selected_color_kde
                 )
 
@@ -331,55 +342,70 @@ if uploaded_file:
                     if i + j < num_imgs:
                         with cols[j]:
                             st.image(img_paths[i + j], use_container_width=True)
-
-    # with st.expander("🎨 KDE 그래프 색상 설정"):
-    #     selected_color_kde = st.selectbox(
-    #         "색상 선택", 
-    #         options=["skyblue", "orange", "green", "red", "purple", "black", "deepskyblue", "limegreen", "seagreen", "gray", "pink"], 
-    #         index=0, 
-    #         key="color_kde"
-    #     )
-    # st.subheader("📊 각 변수 분포 kde 시각화")
-    # if st.toggle("📦 각 변수 분포 kde 시각화 보기", value=False):
-    #     item_list = df["ITEM_CD"].dropna().unique().tolist()
-    #     dist_dir = f"reports/{data_name}/distributions_by_item"
-    #     os.makedirs(dist_dir, exist_ok=True)
-
-    #     selected_item_dist = st.selectbox("🔍 확인할 금형 선택", options=item_list, key="selectbox_distribution") ###
-        
-    #     selected_cols_dist = st.multiselect("🎯 시각화할 변수 선택", options=filtered_var_types["numerical"] + filtered_var_types["categorical"], default=filtered_var_types["numerical"] + filtered_var_types["categorical"])
-        
-    #     if selected_item_dist and selected_cols_dist:
-    #         df_selected = df[df["ITEM_CD"] == selected_item_dist]
-    #         item_dir = os.path.join(dist_dir, str(selected_item_dist))
-    #         img_paths = []
-
-    #         if (
-    #             os.path.exists(dist_dir)
-    #             and any(fname.endswith(f"_distribution_{selected_color_kde}.png") for fname in os.listdir(dist_dir))
-    #         ):
-    #             for col in selected_cols_dist:
-    #                 fname = f"{col}_distribution_{selected_color_kde}.png"
-    #                 path = os.path.join(item_dir, fname)
-    #                 if os.path.exists(path):
-    #                     img_paths.append(path)
-    #         else:
-    #             # 📌 2. 이미지 없으면 새로 생성
-    #             img_paths = plot_value_distributions_by_item(df_selected, selected_cols_dist, item_col="ITEM_CD", save_dir=dist_dir, color=selected_color_kde)
-
-    #         num_imgs = len(img_paths)
-    #         n_cols = 1 if num_imgs == 1 else (2 if num_imgs == 2 else 3)
-
-    #         for i in range(0, num_imgs, n_cols):
-    #             cols = st.columns(n_cols)
-    #             for j in range(n_cols):
-    #                 if i + j < num_imgs:
-    #                     with cols[j]:
-    #                         st.image(img_paths[i + j], use_container_width=True)
     
 
     st.subheader("📊 상관관계 분석 (금형별)")
 
+    st.subheader("📊 범주형 변수 선택해서 Heatmap으로 데이터 분포 확인")
+    selected_cat_cols = st.multiselect("🎯 확인할 변수 선택 (정확히 2개)", options=filtered_var_types["categorical"], key="selectbox_cat_heatmap")
+
+    if len(selected_cat_cols) != 2:
+        st.warning("⚠️ 정확히 두 개의 범주형 변수를 선택해주세요.")
+    else:
+        if st.toggle("📦 Heatmap 시각화 하기", value=False, key="toggle_heatmap"):
+            cat_heatmap_dir = f"reports/{data_name}/categorical_heatmap/{selected_cat_cols[0]}_{selected_cat_cols[1]}"
+            os.makedirs(cat_heatmap_dir, exist_ok=True)
+            check_cols = filtered_var_types["numerical"]
+
+            img_paths = []
+            if (
+                os.path.exists(cat_heatmap_dir)
+                and any(fname.endswith("_median_heatmap.png") for fname in os.listdir(cat_heatmap_dir))
+            ):
+                for col in check_cols:
+                    fname = f"{col}_median_heatmap.png"
+                    path = os.path.join(cat_heatmap_dir, fname)
+                    if os.path.exists(path):
+                        img_paths.append(path)
+            else:
+                img_paths = plot_cat_matrix(df, selected_cat_cols, check_cols, save_path=cat_heatmap_dir)
+
+            # 시각화
+            num_imgs = len(img_paths)
+            n_cols = 1 if num_imgs == 1 else (2 if num_imgs == 2 else 3)
+            for i in range(0, num_imgs, n_cols):
+                cols = st.columns(n_cols)
+                for j in range(n_cols):
+                    if i + j < num_imgs:
+                        with cols[j]:
+                            st.image(img_paths[i + j])
+
+                st.markdown("<br>", unsafe_allow_html=True)
+
+
+    st.subheader("📊 null값 및 0값 확인하기")
+    if st.toggle("📦 시작하기", value=False, key="toggle_null_zero"):
+        selected_0_or_null = st.selectbox("🎯 0 / Null 확인 여부 선택", options=["0", "Null"], key="selectbox_0_or_null")
+        selected_cat_idx_col = st.selectbox("🎯 확인할 변수 선택", options=filtered_var_types["categorical"], key="selectbox_cat_idx")
+        null_0_dir = f"reports/{data_name}/null_0_value_check/"
+        os.makedirs(null_0_dir, exist_ok=True)
+        check_cols = filtered_var_types["numerical"]
+
+        fname = f"{selected_0_or_null}_{selected_cat_idx_col}_value_check.png"
+        img_path = os.path.join(null_0_dir, fname)
+
+        # 이미지가 없을 경우에만 생성
+        if not os.path.exists(img_path):
+            if selected_0_or_null == "0":
+                img_path = check_0_value(df, check_cols, selected_cat_idx_col, save_path=img_path)
+            elif selected_0_or_null == "Null":
+                img_path = check_null_value(df, check_cols, selected_cat_idx_col, save_path=img_path)
+
+        if os.path.exists(img_path):
+            st.image(img_path, use_container_width=True)
+        else:
+            st.warning("⚠️ 이미지 생성에 실패했습니다.")
+    
     st.subheader("📋 원본 데이터 확인")
     st.dataframe(df)
 
