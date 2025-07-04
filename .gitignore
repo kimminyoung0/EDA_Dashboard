@@ -4,3 +4,5 @@ feature_filters/
 data/
 .DS_Store
 .devcontainer/
+.devcontainer/devcontainer.json
+.tmp.drivedownload/
