@@ -8,6 +8,18 @@ import hashlib
 from io import StringIO
 from typing import Dict, List
 
+import matplotlib.colors as mcolors
+
+CUSTOM_PALETTES = {
+    "tab10": sns.color_palette("tab10", 10),
+    "tab20": sns.color_palette("tab20", 20),
+    "Set1": sns.color_palette("Set1", 9),
+    "Set2": sns.color_palette("Set2", 8),
+    "Dark2": sns.color_palette("Dark2", 8),
+    "colorblind": sns.color_palette("colorblind", 10),
+    "custom20": list(mcolors.TABLEAU_COLORS.values()) + list(mcolors.CSS4_COLORS.values())[:10]
+}
+
 st.set_page_config(page_title="ITEM_CD별 변수 분포 비교", layout="centered")
 st.title("📊 ITEM_CD별 컬럼 분포 비교 (여러 데이터)")
 
@@ -44,7 +56,7 @@ if uploaded_files:
     else:
         selected_itemcd = st.selectbox("🔍 ITEM_CD 선택", all_itemcds)
         selected_col = st.selectbox("📈 비교할 수치형 변수 선택", sorted(all_numerical_cols))
-        selected_color_palette = st.selectbox("🎨 색상 팔레트 선택", ["Set1", "Set2", "Dark2", "tab10"], index=0)
+        selected_color_palette = st.selectbox("🎨 색상 팔레트 선택", list(CUSTOM_PALETTES.keys()), index=0)
         use_kde_for_constant = st.checkbox("📌 단일값 컬럼에 KDE 그리기 (노이즈 포함)", value=False)
 
         # ✅ X축 범위 직접 설정
@@ -74,7 +86,7 @@ if uploaded_files:
         else:
             # ➕ 새로 시각화
             fig, ax = plt.subplots(figsize=(7, 4))
-            sns.set_palette(selected_color_palette)
+            sns.set_palette(CUSTOM_PALETTES[selected_color_palette])
             plotted = False
 
             for data_name, df in data_dict.items():
