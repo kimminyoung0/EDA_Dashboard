@@ -431,7 +431,25 @@ if uploaded_file:
             else:
                 st.warning("ANOVA 분석에 실패했거나 유효한 데이터가 없습니다.")
 
-    
+    st.subheader("📈 수치형 변수 간 상관관계 분석")
+
+    if st.toggle("🔍 상관관계 분석 시작하기", key="toggle_corr"):
+        corr_method = st.selectbox("📊 상관계수 계산 방식", options=["pearson", "spearman", "kendall"], key="corr_method")
+        
+        # 수치형 변수 선택
+        selected_num_cols = st.multiselect("🎯 분석할 수치형 변수 선택", options=filtered_var_types["numerical"], default=filtered_var_types["numerical"])
+        
+        if selected_num_cols:
+            corr_dir = f"reports/{data_name}/correlation_matrix/"
+            os.makedirs(corr_dir, exist_ok=True)
+            corr_img_path = os.path.join(corr_dir, f"{corr_method}_correlation_matrix.png")
+
+            # 이미지 저장 및 출력
+            plot_correlation_matrix(df, selected_num_cols, corr_img_path, method=corr_method)
+            st.image(corr_img_path, use_container_width=True)
+
+
+
     st.subheader("📋 원본 데이터 확인")
     st.dataframe(df)
 
@@ -439,6 +457,7 @@ if uploaded_file:
     st.subheader("📋 필터링된 데이터 확인")
     filtered_df = filter_dataframe(df)
     st.dataframe(filtered_df)
+
 
 else:
     st.warning("⬆️ 분석을 시작하려면 먼저 파일을 업로드해주세요.")
