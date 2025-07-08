@@ -17,6 +17,7 @@ from eda_modules.filters import filter_dataframe
 from eda_modules.value_counts import show_value_counts
 from eda_modules.categorical_heatmap import plot_cat_matrix
 from eda_modules.null_0_value_check import check_0_value, check_null_value
+from eda_modules.cat_statistical_check import perform_multivariate_anova
 import streamlit.components.v1 as components 
 
 
@@ -405,6 +406,31 @@ if uploaded_file:
             st.image(img_path, use_container_width=True)
         else:
             st.warning("⚠️ 이미지 생성에 실패했습니다.")
+
+
+    st.subheader("📊 다변량 ANOVA (범주형 vs 수치형 변수)")
+
+    if st.toggle("📦 다변량 ANOVA 시작하기", value=False, key="toggle_multianova"):
+        selected_cat_cols_anova = st.multiselect(
+            "🎯 독립 변수 (범주형) 선택", 
+            options=filtered_var_types["categorical"], 
+            key="multi_anova_cat"
+        )
+
+        selected_num_col_anova = st.selectbox(
+            "🎯 종속 변수 (수치형) 선택", 
+            options=filtered_var_types["numerical"], 
+            key="multi_anova_num"
+        )
+
+        if selected_cat_cols_anova and selected_num_col_anova:
+            st.markdown(f"🧪 Z-Score 방식 이상치 제거 임계값: **7.0**")
+            result_df = perform_multivariate_anova(df, selected_cat_cols_anova, selected_num_col_anova, z_threshold=7.0)
+            if result_df is not None:
+                st.dataframe(result_df)
+            else:
+                st.warning("ANOVA 분석에 실패했거나 유효한 데이터가 없습니다.")
+
     
     st.subheader("📋 원본 데이터 확인")
     st.dataframe(df)
