@@ -6,4 +6,5 @@ data/
 .devcontainer/
 .devcontainer/devcontainer.json
 .tmp.drivedownload/
-eda_modules/__pycache__/
+eda_modules/_pycache__/
+reports_catcol/
