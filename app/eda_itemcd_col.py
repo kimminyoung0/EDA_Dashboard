@@ -20,12 +20,12 @@ CUSTOM_PALETTES = {
     "custom20": list(mcolors.TABLEAU_COLORS.values()) + list(mcolors.CSS4_COLORS.values())[:10]
 }
 
-st.set_page_config(page_title="ITEM_CD별 변수 분포 비교", layout="centered")
-st.title("📊 ITEM_CD별 컬럼 분포 비교 (여러 데이터)")
+st.set_page_config(page_title="여러 데이터 분포 비교", layout="centered")
+st.title("📊 여러 데이터 분포 비교를 위한 대시보드")
 
 st.markdown("""
-이 앱은 여러 개의 데이터를 업로드한 후, 특정 ITEM_CD와 변수(컬럼)를 선택하여  
-각 데이터에서의 분포(KDE)를 하나의 그래프에 겹쳐 시각화할 수 있도록 합니다.
+이 앱은 여러 개의 데이터를 업로드한 후, 원하는 변수를 선택하여  
+각 데이터의 변수별 분포(KDE)를 하나의 그래프에 겹쳐 시각화할 수 있도록 합니다.
 """)
 
 # 📂 데이터 업로드
