@@ -13,4 +13,4 @@
 https://eda-dashboard-min0.streamlit.app/
 
 ## 기간 별로 달라지는 데이터 분포 확인을 위한 대시보드
-https://edadashboard-itemcd-min0.streamlit.app/
+https://edadashboard-compare-data-min0.streamlit.app/
