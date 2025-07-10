@@ -20,7 +20,7 @@ CUSTOM_PALETTES = {
     "custom20": list(mcolors.TABLEAU_COLORS.values()) + list(mcolors.CSS4_COLORS.values())[:10]
 }
 
-st.set_page_config(page_title="여러 데이터 분포 비교", layout="centered")
+st.set_page_config(page_title="여러 데이터 분포 비교", layout="wide")
 st.title("📊 여러 데이터 분포 비교를 위한 대시보드")
 
 st.markdown("""
