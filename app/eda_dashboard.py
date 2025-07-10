@@ -460,4 +460,4 @@ if uploaded_file:
 
 
 else:
-    st.warning("⬆️ 분석을 시작하려면 먼저 파일을 업로드해주세요.")
+    st.info("⬆️ 분석을 시작하려면 파일을 업로드해주세요.")
