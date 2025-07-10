@@ -9,10 +9,10 @@
 - **배포**: Streamlit
 ------
 
-## 데이터 분석 대시보드
-https://eda-dashboard-min0.streamlit.app/
-<img width="1917" height="869" alt="Image" src="https://github.com/user-attachments/assets/6bcb9546-8aa4-4eec-9975-f94be0c5f6d6" />
+## 1. 데이터 분석 대시보드
+[바로가기](https://eda-dashboard-min0.streamlit.app/)
+<img width="1500" height="600" alt="Image" src="https://github.com/user-attachments/assets/6bcb9546-8aa4-4eec-9975-f94be0c5f6d6" />
 
-## 기간 별로 달라지는 데이터 분포 확인을 위한 대시보드
-https://edadashboard-compare-data-min0.streamlit.app/
-<img width="1917" height="870" alt="Image" src="https://github.com/user-attachments/assets/3e861e17-d798-4f35-a07a-6c3516fbdd5d" />
+## 2. 기간 별로 달라지는 데이터 분포 확인을 위한 대시보드
+[바로가기](https://edadashboard-compare-data-min0.streamlit.app/)
+<img width="1500" height="600" alt="Image" src="https://github.com/user-attachments/assets/3e861e17-d798-4f35-a07a-6c3516fbdd5d" />
