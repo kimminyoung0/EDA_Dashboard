@@ -89,6 +89,7 @@ if uploaded_file:
     df = sanitize_object_columns(df)
     st.success(f"✅ 파일 업로드 완료: {uploaded_file.name}")
 
+    st.set_page_config(page_title=data_name)
     st.title(f"📊 {data_name}")
     data_title = "_".join(data_name.split("_")[3:])
     st.set_page_config(page_title = data_title, layout="wide", #layout = centered
