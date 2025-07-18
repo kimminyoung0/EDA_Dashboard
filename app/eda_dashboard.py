@@ -237,6 +237,7 @@ if uploaded_file:
             img_paths = []
 
             if outlier_method == "Boxplot(기본 IQR)":
+                param_dir = os.path.join(item_dir, f"basic_boxplot")
                 pass
             elif outlier_method == "Z-Score":
                 z_threshold = st.slider("Z-Score 임계값 (절댓값)", 1.0, 7.0, 3.0, step=1.0, key = f"z_threshold_slider")
