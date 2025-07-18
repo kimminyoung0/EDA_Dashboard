@@ -8,9 +8,15 @@ import os
 def plot_correlation_matrix(df, num_cols, save_path, method='pearson'):
     corr = df[num_cols].corr(method=method)
 
-    plt.figure(figsize=(min(16, len(num_cols) * 1.2), len(num_cols) * 0.8))
+    n = len(num_cols) #엥겔 15 / 우진 25
+    fig_size = max(16, n * 1.2) #max(8, n * 0.5)
+    font_scale = 1.5 #min(1.0, 20 / n) 
+    plt.figure(figsize=(fig_size, fig_size), dpi = 150)
+    sns.set(font_scale=font_scale)
     sns.heatmap(corr, annot=True, fmt=".2f", cmap="coolwarm", cbar_kws={"label": f"{method.capitalize()} Correlation"})
-    plt.title(f"{method.capitalize()} Correlation Matrix", fontsize=14)
+    plt.xticks(fontsize=25)
+    plt.yticks(fontsize=25)
+    plt.title(f"{method.capitalize()} Correlation Matrix", fontsize=25, pad=70)
     plt.tight_layout()
     plt.savefig(save_path, facecolor="white")
     plt.close()

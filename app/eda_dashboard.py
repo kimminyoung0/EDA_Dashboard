@@ -20,6 +20,13 @@ from eda_modules.null_0_value_check import check_0_value, check_null_value
 from eda_modules.cat_statistical_check import perform_multivariate_anova
 import streamlit.components.v1 as components 
 
+# set_page_config: 앱의 초기 페이지 설정을 지정하는 함수
+st.set_page_config(page_title="EDA Dashboard", layout="wide", #layout = centered
+                    menu_items={
+                        'Get Help': 'https://github.com/kimminyoung0',
+                        'Report a bug': 'https://github.com/kimminyoung0/issues',
+                        'About': 'EDA Dashboard by Kim Minyoung'
+                    }) 
 
 # 제외할 컬럼 저장 및 불러오기(json)
 def save_filter_config(filtered_vars, path):
@@ -55,13 +62,7 @@ components.html("""
 """, height=0)
 
 
-# set_page_config: 앱의 초기 페이지 설정을 지정하는 함수
-st.set_page_config(page_title="EDA Dashboard", layout="wide", #layout = centered
-                    menu_items={
-                        'Get Help': 'https://github.com/kimminyoung0',
-                        'Report a bug': 'https://github.com/kimminyoung0/issues',
-                        'About': 'EDA Dashboard by Kim Minyoung'
-                    }) 
+
  
 st.title("🧪 EDA 대시보드")
 
@@ -89,15 +90,15 @@ if uploaded_file:
     df = sanitize_object_columns(df)
     st.success(f"✅ 파일 업로드 완료: {uploaded_file.name}")
 
-    st.set_page_config(page_title=data_name)
+    #st.set_page_config(page_title=data_name)
     st.title(f"📊 {data_name}")
-    data_title = "_".join(data_name.split("_")[3:])
-    st.set_page_config(page_title = data_title, layout="wide", #layout = centered
-                    menu_items={
-                        'Get Help': 'https://github.com/kimminyoung0',
-                        'Report a bug': 'https://github.com/kimminyoung0/issues',
-                        'About': 'EDA Dashboard by Kim Minyoung'
-                    }) 
+    # data_title = "_".join(data_name.split("_")[3:])
+    # st.set_page_config(page_title = data_title, layout="wide", #layout = centered
+    #                 menu_items={
+    #                     'Get Help': 'https://github.com/kimminyoung0',
+    #                     'Report a bug': 'https://github.com/kimminyoung0/issues',
+    #                     'About': 'EDA Dashboard by Kim Minyoung'
+    #                 }) 
 
     report_base = os.path.join("reports", data_name)
     outlier_dir = os.path.join(report_base, "outliers_by_item")
@@ -344,9 +345,7 @@ if uploaded_file:
                     if i + j < num_imgs:
                         with cols[j]:
                             st.image(img_paths[i + j], use_container_width=True)
-    
 
-    st.subheader("📊 상관관계 분석 (금형별)")
 
     st.subheader("📊 범주형 변수 선택해서 Heatmap으로 데이터 분포 확인")
     selected_cat_cols = st.multiselect("🎯 확인할 변수 선택 (정확히 2개)", options=filtered_var_types["categorical"], key="selectbox_cat_heatmap")
