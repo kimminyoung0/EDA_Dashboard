@@ -15,7 +15,7 @@ def plot_cat_matrix(df, cat_cols, num_cols, save_path):
             aggfunc='median'
         )
 
-        plt.figure(figsize=(12, len(pivot_df) * 0.4))
+        plt.figure(figsize=(12, len(pivot_df) * 0.8))
         sns.heatmap(pivot_df, annot=True, fmt=".1f", cmap='coolwarm', cbar_kws={'label': f'{col} 중앙값'})
         plt.title(f'{cat_cols[0]} : {cat_cols[1]} - {col} Median Heatmap')
         plt.xlabel(cat_cols[1])

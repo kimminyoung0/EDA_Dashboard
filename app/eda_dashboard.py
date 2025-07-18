@@ -191,7 +191,15 @@ if uploaded_file:
     with st.expander("🎨 이상치 boxplot 색상 설정"):
         selected_color_outlier = st.selectbox(
             "시각화 색상 선택",
-            options=["skyblue", "orange", "green", "red", "purple", "black", "deepskyblue", "limegreen", "seagreen", "gray", "pink"],
+            options = [
+                "skyblue", "orange", "green", "red", "purple", "black", "deepskyblue", 
+                "limegreen", "seagreen", "gray", "pink",
+                "gold", "navy", "coral", "dodgerblue", "darkorange", "darkred",
+                "olive", "teal", "mediumslateblue", "indigo", "crimson",
+                "chocolate", "darkgreen", "slategray", "orchid", "magenta",
+                "cadetblue", "lightseagreen", "firebrick", "mediumvioletred",
+                "tomato", "steelblue", "sienna", "peru", "turquoise"
+            ],
             index=0,
             key="color_outlier"
         )
@@ -284,7 +292,15 @@ if uploaded_file:
     with st.expander("🎨 KDE 그래프 색상 설정"):
         selected_color_kde = st.selectbox(
             "색상 선택", 
-            options=["skyblue", "orange", "green", "red", "purple", "black", "deepskyblue", "limegreen", "seagreen", "gray", "pink"], 
+            options = [
+                "skyblue", "orange", "green", "red", "purple", "black", "deepskyblue", 
+                "limegreen", "seagreen", "gray", "pink",
+                "gold", "navy", "coral", "dodgerblue", "darkorange", "darkred",
+                "olive", "teal", "mediumslateblue", "indigo", "crimson",
+                "chocolate", "darkgreen", "slategray", "orchid", "magenta",
+                "cadetblue", "lightseagreen", "firebrick", "mediumvioletred",
+                "tomato", "steelblue", "sienna", "peru", "turquoise"
+            ],
             index=0, 
             key="color_kde"
         )
@@ -374,7 +390,7 @@ if uploaded_file:
 
             # 시각화
             num_imgs = len(img_paths)
-            n_cols = 1 if num_imgs == 1 else (2 if num_imgs == 2 else 3)
+            n_cols = 1 if num_imgs == 1 else 2
             for i in range(0, num_imgs, n_cols):
                 cols = st.columns(n_cols)
                 for j in range(n_cols):
