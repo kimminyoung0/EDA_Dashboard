@@ -1,6 +1,8 @@
 import pandas as pd
 import streamlit as st
 
+pd.set_option("styler.render.max_elements", 360000)
+
 def show_value_counts(df: pd.DataFrame):
     st.subheader("📊 변수별 빈도 (value_counts)")
 
@@ -15,7 +17,15 @@ def show_value_counts(df: pd.DataFrame):
         st.warning("⚠️ 최대 4개 변수까지만 선택 가능합니다.")
         return
 
-    # 그룹별 개수 계산
+    # ✅ 비율 계산 여부
+    show_ratio = st.checkbox("📌 비율 계산하기", value=False)
+
+    # ✅ 기준 변수 선택 (2개 이상 선택한 경우만)
+    base_col = None
+    if show_ratio and len(selected_cols) >= 2:
+        base_col = st.selectbox("🎯 비율 기준 변수 선택", options=selected_cols)
+
+    # ✅ 그룹별 개수 계산
     group_counts = (
         df.groupby(selected_cols, dropna=False)
         .size()
@@ -24,6 +34,18 @@ def show_value_counts(df: pd.DataFrame):
         .reset_index(drop=True)
     )
 
+    # ✅ 비율 계산
+    if show_ratio:
+        if len(selected_cols) == 1:
+            # 전체 기준 비율
+            total = group_counts["count"].sum()
+            group_counts["ratio (%)"] = (group_counts["count"] / total * 100).round(2)
+        elif base_col:
+            base_totals = df.groupby(base_col).size().to_dict()
+            group_counts["ratio (%)"] = group_counts[base_col].map(base_totals)
+            group_counts["ratio (%)"] = (group_counts["count"] / group_counts["ratio (%)"] * 100).round(2)
+
+    # ✅ 행 배경 색상 처리
     if len(selected_cols) >= 1:
         first_col = selected_cols[0]
         group_counts["__bg_color_group__"] = (
@@ -32,7 +54,6 @@ def show_value_counts(df: pd.DataFrame):
 
         display_df = group_counts.drop(columns=["__bg_color_group__"])
 
-        # 행별 색상 지정 함수
         def highlight_groups(row):
             color = "#f9f9f9" if group_counts.loc[row.name, "__bg_color_group__"] % 2 == 0 else "#ffffff"
             return ['background-color: {}; text-align: left'.format(color)] * len(row)
@@ -40,24 +61,16 @@ def show_value_counts(df: pd.DataFrame):
         styled_df = (
             display_df.style
             .apply(highlight_groups, axis=1)
-            .set_table_styles(
-                [
-                    {
-                        "selector": "th",
-                        "props": [("text-align", "left"), ("white-space", "nowrap")]
-                    },
-                    {
-                        "selector": "td",
-                        "props": [
-                            ("text-align", "left"),
-                            ("white-space", "pre-wrap"),
-                            ("word-wrap", "break-word"),
-                            ("min-width", "80px"),
-                            ("max-width", "300px")
-                        ]
-                    },
-                ]
-            )
+            .set_table_styles([
+                {"selector": "th", "props": [("text-align", "left"), ("white-space", "nowrap")]},
+                {"selector": "td", "props": [
+                    ("text-align", "left"),
+                    ("white-space", "pre-wrap"),
+                    ("word-wrap", "break-word"),
+                    ("min-width", "80px"),
+                    ("max-width", "300px")
+                ]}
+            ])
         )
 
         left, center, right = st.columns([1, 6, 1])
