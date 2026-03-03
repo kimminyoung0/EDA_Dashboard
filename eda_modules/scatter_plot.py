@@ -2,6 +2,60 @@
 
 import pandas as pd
 import numpy as np
+import plotly.express as px  # type: ignore
+
+
+def plot_scatter(df, x_col, y_col, hue_col=None, hover_all_cols: bool = True):
+    """
+    Plotly 산점도 (인터랙티브)
+
+    Parameters:
+        df: 데이터프레임
+        x_col: X축 변수명
+        y_col: Y축 변수명
+        hue_col: 색상 구분 변수명 (선택사항)
+        hover_all_cols: hover 시 모든 컬럼 정보를 보여줄지 여부
+
+    Returns:
+        Plotly Figure 또는 None
+    """
+    cols = [x_col, y_col] + ([hue_col] if hue_col else [])
+    df_clean = df[cols].dropna().copy()
+
+    if df_clean.empty:
+        return None
+
+    # hover에 전체 row 정보를 넣고 싶으면 hover_data에 모든 컬럼 전달
+    if hover_all_cols:
+        hover_data = {col: True for col in df.columns}
+    else:
+        hover_data = {col: True for col in cols}
+
+    fig = px.scatter(
+        df_clean,
+        x=x_col,
+        y=y_col,
+        color=hue_col,
+        hover_data=hover_data,
+        opacity=0.7,
+    )
+
+    fig.update_layout(
+        title=f"Scatter Plot: {x_col} vs {y_col}",
+        xaxis_title=x_col,
+        yaxis_title=y_col,
+        font=dict(family="Malgun Gothic"),
+        legend_title=hue_col if hue_col else "",
+    )
+
+    fig.update_traces(marker=dict(size=7))
+
+    return fig
+
+# eda_modules/scatter_plot.py
+
+import pandas as pd
+import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 import os

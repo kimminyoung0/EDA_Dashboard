@@ -3,6 +3,7 @@ import streamlit as st  # type: ignore
 import pandas as pd
 import numpy as np
 import math
+import matplotlib  # type: ignore
 
 # 현재 파일 기준 상위 디렉토리(DataAnalysis)를 모듈 경로에 추가
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -26,6 +27,10 @@ from eda_modules.cat_statistical_check import (
 )
 from eda_modules.scatter_plot import plot_scatter
 import streamlit.components.v1 as components  # type: ignore 
+
+# Matplotlib 한글 폰트 설정 (Windows 기준: Malgun Gothic)
+matplotlib.rcParams["font.family"] = "Malgun Gothic"
+matplotlib.rcParams["axes.unicode_minus"] = False
 
 # set_page_config: 앱의 초기 페이지 설정을 지정하는 함수
 st.set_page_config(page_title="EDA Dashboard", layout="wide", #layout = centered
@@ -739,20 +744,12 @@ if uploaded_file:
                 )
             
             if selected_x_col and selected_y_col:
-                scatter_dir = f"reports/{data_name}/scatter_plots/"
-                os.makedirs(scatter_dir, exist_ok=True)
+                fig_scatter = plot_scatter(df, selected_x_col, selected_y_col, selected_hue_col, hover_all_cols=True)
                 
-                hue_suffix = f"_{selected_hue_col}" if selected_hue_col else ""
-                scatter_img_path = os.path.join(scatter_dir, f"{selected_x_col}_vs_{selected_y_col}{hue_suffix}.png")
-                
-                # 산점도 생성
-                saved_path = plot_scatter(df, selected_x_col, selected_y_col, selected_hue_col, save_path=scatter_img_path)
-                
-                if saved_path and os.path.exists(saved_path):
-                    st.image(saved_path, use_container_width=True)
-                    st.success(f"✅ 산점도가 저장되었습니다: {saved_path}")
+                if fig_scatter is not None:
+                    st.plotly_chart(fig_scatter, use_container_width=True)
                 else:
-                    st.warning("⚠️ 산점도 생성에 실패했습니다.")
+                    st.warning("⚠️ 유효한 데이터가 없어 산점도를 그릴 수 없습니다.")
 
     with tab5:
         st.markdown("### 📋 데이터 확인")
