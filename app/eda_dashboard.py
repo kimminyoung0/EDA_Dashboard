@@ -17,7 +17,14 @@ from eda_modules.filters import filter_dataframe
 from eda_modules.value_counts import show_value_counts
 from eda_modules.categorical_heatmap import plot_cat_matrix
 from eda_modules.null_0_value_check import check_0_value, check_null_value
-from eda_modules.cat_statistical_check import perform_multivariate_anova
+from eda_modules.cat_statistical_check import (
+    perform_multivariate_anova, 
+    perform_normality_test,
+    perform_anova_with_posthoc,
+    perform_independent_ttest,
+    perform_ttest_posthoc
+)
+from eda_modules.scatter_plot import plot_scatter
 import streamlit.components.v1 as components 
 
 # set_page_config: 앱의 초기 페이지 설정을 지정하는 함수
@@ -66,7 +73,7 @@ components.html("""
  
 st.title("🧪 EDA 대시보드")
 
-uploaded_file = st.file_uploader("📂 CSV 또는 Excel 파일 업로드", type=["csv", "xlsx"])
+uploaded_file = st.file_uploader("📂 CSV 또는 Excel 파일 업로드", type=["csv", "xlsx", "xls"])
 
 if uploaded_file:
     ext = uploaded_file.name.split(".")[-1].lower()
@@ -86,7 +93,27 @@ if uploaded_file:
     with open(data_path, "wb") as f:
         f.write(uploaded_file.getbuffer())
     
-    df = pd.read_csv(uploaded_file) if ext == "csv" else pd.read_excel(uploaded_file)
+    # 엑셀 파일 읽기 (xls, xlsx 모두 지원)
+    if ext == "csv":
+        df = pd.read_csv(uploaded_file)
+    elif ext in ["xlsx", "xls"]:
+        # 엑셀 파일의 경우 엔진 자동 선택 (openpyxl 또는 xlrd)
+        try:
+            if ext == "xlsx":
+                df = pd.read_excel(uploaded_file, engine='openpyxl')
+            else:  # xls
+                df = pd.read_excel(uploaded_file, engine='xlrd')
+        except Exception as e:
+            try:
+                # 대체 엔진 시도
+                df = pd.read_excel(uploaded_file)
+            except Exception as e2:
+                st.error(f"❌ 엑셀 파일 읽기 실패: {e2}")
+                st.stop()
+    else:
+        st.error(f"❌ 지원하지 않는 파일 형식입니다: {ext}")
+        st.stop()
+    
     df = sanitize_object_columns(df)
     st.success(f"✅ 파일 업로드 완료: {uploaded_file.name}")
 
@@ -425,28 +452,228 @@ if uploaded_file:
             st.warning("⚠️ 이미지 생성에 실패했습니다.")
 
 
+    st.subheader("📊 정규성 검정")
+
+    if st.toggle("📦 정규성 검정 시작하기", value=False, key="toggle_normality"):
+        selected_num_col_norm = st.selectbox(
+            "🎯 검정할 수치형 변수 선택",
+            options=filtered_var_types["numerical"],
+            key="normality_num"
+        )
+        
+        test_method = st.selectbox(
+            "🧪 검정 방법 선택",
+            options=["shapiro", "ks"],
+            format_func=lambda x: "Shapiro-Wilk" if x == "shapiro" else "Kolmogorov-Smirnov",
+            key="normality_method"
+        )
+        
+        group_by_norm = st.selectbox(
+            "📑 그룹별 검정 여부",
+            options=["전체 데이터", "그룹별 검정"],
+            key="normality_group"
+        )
+        
+        selected_cat_col_norm = None
+        if group_by_norm == "그룹별 검정":
+            selected_cat_col_norm = st.selectbox(
+                "🎯 그룹화할 범주형 변수 선택",
+                options=filtered_var_types["categorical"],
+                key="normality_cat"
+            )
+        
+        if st.button("🔍 정규성 검정 실행", key="btn_normality"):
+            if selected_cat_col_norm:
+                result = perform_normality_test(df, selected_num_col_norm, cat_col=selected_cat_col_norm, method=test_method)
+            else:
+                result = perform_normality_test(df, selected_num_col_norm, method=test_method)
+            
+            if "error" in result:
+                st.error(f"❌ {result['error']}")
+            elif "groups" in result:
+                st.write("**그룹별 정규성 검정 결과**")
+                norm_df = pd.DataFrame(result["groups"])
+                st.dataframe(norm_df)
+            else:
+                st.write("**정규성 검정 결과**")
+                st.json(result)
+
     st.subheader("📊 다변량 ANOVA (범주형 vs 수치형 변수)")
 
+    with st.expander("ℹ️ ANOVA 검정 목적 및 사용 예시", expanded=False):
+        st.markdown("""
+        **ANOVA (분산분석) 검정의 목적:**
+        - 여러 그룹(범주) 간 수치형 변수의 평균 차이가 통계적으로 유의한지 검정
+        - 범주형 변수가 종속 변수(수치형)에 미치는 영향을 확인하여, 해당 범주형 변수가 타겟 변수를 예측하거나 설명하는 데 의미가 있는지 판단
+        
+        **사용 예시:**
+        - 제품 카테고리별 판매량 차이 확인 → 카테고리가 판매량 예측에 유의한 변수인지 검증
+        - 지역별 고객 만족도 점수 비교 → 지역이 만족도에 영향을 미치는지 확인
+        - 교육 방법(A, B, C)별 시험 점수 비교 → 교육 방법이 성과에 차이를 만드는지 검증
+        
+        **일원배치 vs 이원배치:**
+        - **일원배치 ANOVA**: 범주형 변수 1개 선택 시 (예: 지역별 판매량 비교)
+        - **이원배치 ANOVA**: 범주형 변수 2개 선택 시 (예: 지역 × 제품유형별 판매량 비교, 상호작용 효과 확인)
+        - **다원배치 ANOVA**: 범주형 변수 3개 이상 선택 시
+        """)
+
     if st.toggle("📦 다변량 ANOVA 시작하기", value=False, key="toggle_multianova"):
-        selected_cat_cols_anova = st.multiselect(
-            "🎯 독립 변수 (범주형) 선택", 
-            options=filtered_var_types["categorical"], 
-            key="multi_anova_cat"
+        anova_mode = st.radio(
+            "🔍 ANOVA 모드 선택",
+            options=["다변량 ANOVA", "단일 변수 ANOVA + 사후검정"],
+            key="anova_mode"
         )
+        
+        if anova_mode == "다변량 ANOVA":
+            selected_cat_cols_anova = st.multiselect(
+                "🎯 독립 변수 (범주형) 선택", 
+                options=filtered_var_types["categorical"], 
+                key="multi_anova_cat"
+            )
 
-        selected_num_col_anova = st.selectbox(
-            "🎯 종속 변수 (수치형) 선택", 
-            options=filtered_var_types["numerical"], 
-            key="multi_anova_num"
+            selected_num_col_anova = st.selectbox(
+                "🎯 종속 변수 (수치형) 선택", 
+                options=filtered_var_types["numerical"], 
+                key="multi_anova_num"
+            )
+
+            # 일원배치/이원배치 안내
+            if selected_cat_cols_anova:
+                num_factors = len(selected_cat_cols_anova)
+                if num_factors == 1:
+                    st.info(f"ℹ️ **일원배치 ANOVA**: 범주형 변수 1개 선택됨 ({selected_cat_cols_anova[0]})")
+                elif num_factors == 2:
+                    st.info(f"ℹ️ **이원배치 ANOVA**: 범주형 변수 2개 선택됨 ({', '.join(selected_cat_cols_anova)})")
+                else:
+                    st.info(f"ℹ️ **다원배치 ANOVA**: 범주형 변수 {num_factors}개 선택됨 ({', '.join(selected_cat_cols_anova)})")
+
+            if selected_cat_cols_anova and selected_num_col_anova:
+                st.markdown(f"🧪 Z-Score 방식 이상치 제거 임계값: **7.0**")
+                result_df = perform_multivariate_anova(df, selected_cat_cols_anova, selected_num_col_anova, z_threshold=7.0)
+                if result_df is not None:
+                    st.dataframe(result_df)
+                else:
+                    st.warning("ANOVA 분석에 실패했거나 유효한 데이터가 없습니다.")
+        else:  # 단일 변수 ANOVA + 사후검정
+            selected_cat_col_anova = st.selectbox(
+                "🎯 독립 변수 (범주형, 단일 변수) 선택",
+                options=filtered_var_types["categorical"],
+                key="single_anova_cat"
+            )
+            
+            selected_num_col_anova = st.selectbox(
+                "🎯 종속 변수 (수치형) 선택",
+                options=filtered_var_types["numerical"],
+                key="single_anova_num"
+            )
+            
+            if selected_cat_col_anova and selected_num_col_anova:
+                st.markdown(f"🧪 Z-Score 방식 이상치 제거 임계값: **7.0**")
+                anova_result, posthoc_result = perform_anova_with_posthoc(
+                    df, selected_cat_col_anova, selected_num_col_anova, z_threshold=7.0
+                )
+                
+                if anova_result:
+                    st.write("**ANOVA 검정 결과**")
+                    st.json(anova_result)
+                    
+                    if posthoc_result and "error" not in posthoc_result:
+                        st.write("**사후검정 결과 (Tukey HSD)**")
+                        st.dataframe(posthoc_result["summary"])
+                    elif posthoc_result and "error" in posthoc_result:
+                        st.warning(f"⚠️ {posthoc_result['error']}")
+                    else:
+                        st.info("ℹ️ ANOVA 결과가 유의하지 않아 사후검정을 수행하지 않았습니다 (p >= 0.05)")
+                else:
+                    st.warning("ANOVA 분석에 실패했거나 유효한 데이터가 없습니다.")
+
+    st.subheader("📊 독립표본 t검정")
+
+    with st.expander("ℹ️ 독립표본 t검정 목적 및 사용 예시", expanded=False):
+        st.markdown("""
+        **독립표본 t검정의 목적:**
+        - 두 개의 독립적인 그룹 간 수치형 변수의 평균 차이가 통계적으로 유의한지 검정
+        - 범주형 변수로 나눈 두 집단의 평균을 비교하여, 해당 범주형 변수가 타겟 변수를 예측하거나 구분하는 데 유의한지 확인
+        
+        **사용 예시:**
+        - 남성 vs 여성의 평균 소득 비교 → 성별이 소득에 영향을 미치는지 검증
+        - A/B 테스트: 기존 버전 vs 새 버전의 전환율 비교 → 새 버전이 성과 개선에 효과가 있는지 확인
+        - 치료군 vs 대조군의 회복 시간 비교 → 치료 효과가 있는지 검증
+        - 고객 등급(일반/프리미엄)별 평균 구매금액 비교 → 등급이 구매 행동을 구분하는 의미 있는 변수인지 확인
+        """)
+
+    if st.toggle("📦 독립표본 t검정 시작하기", value=False, key="toggle_ttest"):
+        ttest_mode = st.radio(
+            "🔍 t검정 모드 선택",
+            options=["두 그룹 비교", "여러 그룹 쌍별 비교 (사후검정)"],
+            key="ttest_mode"
         )
-
-        if selected_cat_cols_anova and selected_num_col_anova:
-            st.markdown(f"🧪 Z-Score 방식 이상치 제거 임계값: **7.0**")
-            result_df = perform_multivariate_anova(df, selected_cat_cols_anova, selected_num_col_anova, z_threshold=7.0)
-            if result_df is not None:
-                st.dataframe(result_df)
-            else:
-                st.warning("ANOVA 분석에 실패했거나 유효한 데이터가 없습니다.")
+        
+        selected_cat_col_ttest = st.selectbox(
+            "🎯 그룹 변수 (범주형) 선택",
+            options=filtered_var_types["categorical"],
+            key="ttest_cat"
+        )
+        
+        selected_num_col_ttest = st.selectbox(
+            "🎯 비교할 수치형 변수 선택",
+            options=filtered_var_types["numerical"],
+            key="ttest_num"
+        )
+        
+        if ttest_mode == "두 그룹 비교":
+            if selected_cat_col_ttest and selected_num_col_ttest:
+                st.markdown(f"🧪 Z-Score 방식 이상치 제거 임계값: **7.0**")
+                result = perform_independent_ttest(df, selected_cat_col_ttest, selected_num_col_ttest, z_threshold=7.0)
+                
+                if "error" in result:
+                    st.error(f"❌ {result['error']}")
+                else:
+                    st.write("**독립표본 t검정 결과**")
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.metric(f"{result['group1']} 평균", f"{result['group1_mean']:.4f}")
+                        st.metric(f"{result['group1']} 표준편차", f"{result['group1_std']:.4f}")
+                        st.metric(f"{result['group1']} 샘플 수", result['group1_n'])
+                    with col2:
+                        st.metric(f"{result['group2']} 평균", f"{result['group2_mean']:.4f}")
+                        st.metric(f"{result['group2']} 표준편차", f"{result['group2_std']:.4f}")
+                        st.metric(f"{result['group2']} 샘플 수", result['group2_n'])
+                    
+                    st.write("**검정 통계량**")
+                    st.json({
+                        "t-statistic": result['t-statistic'],
+                        "p-value": result['p-value'],
+                        "Significant (<0.05)": result['Significant (<0.05)'],
+                        "등분산성 (Levene's test p-value)": result['levene_p'],
+                        "등분산 가정": result['equal_variance'],
+                        "Cohen's d (효과 크기)": result['cohens_d']
+                    })
+        else:  # 여러 그룹 쌍별 비교
+            correction_method = st.selectbox(
+                "🧪 다중비교 보정 방법",
+                options=["bonferroni", "holm", "fdr_bh", "none"],
+                format_func=lambda x: {
+                    "bonferroni": "Bonferroni",
+                    "holm": "Holm",
+                    "fdr_bh": "FDR (Benjamini-Hochberg)",
+                    "none": "보정 없음"
+                }[x],
+                key="ttest_correction"
+            )
+            
+            if selected_cat_col_ttest and selected_num_col_ttest:
+                st.markdown(f"🧪 Z-Score 방식 이상치 제거 임계값: **7.0**")
+                result_df = perform_ttest_posthoc(
+                    df, selected_cat_col_ttest, selected_num_col_ttest, 
+                    z_threshold=7.0, correction=correction_method
+                )
+                
+                if "error" in result_df.columns:
+                    st.error(f"❌ {result_df['error'].iloc[0]}")
+                else:
+                    st.write("**쌍별 t검정 결과**")
+                    st.dataframe(result_df)
 
     st.subheader("📈 수치형 변수 간 상관관계 분석")
 
@@ -464,6 +691,47 @@ if uploaded_file:
             # 이미지 저장 및 출력
             plot_correlation_matrix(df, selected_num_cols, corr_img_path, method=corr_method)
             st.image(corr_img_path, use_container_width=True)
+
+    st.subheader("📊 산점도 (Scatter Plot)")
+
+    if st.toggle("📦 산점도 그리기", value=False, key="toggle_scatter"):
+        selected_x_col = st.selectbox(
+            "🎯 X축 변수 선택",
+            options=filtered_var_types["numerical"],
+            key="scatter_x"
+        )
+        
+        selected_y_col = st.selectbox(
+            "🎯 Y축 변수 선택",
+            options=filtered_var_types["numerical"],
+            key="scatter_y"
+        )
+        
+        use_hue = st.checkbox("🎨 색상 구분 사용 (범주형 변수)", value=False, key="scatter_hue_check")
+        
+        selected_hue_col = None
+        if use_hue:
+            selected_hue_col = st.selectbox(
+                "🎯 색상 구분 변수 선택",
+                options=filtered_var_types["categorical"],
+                key="scatter_hue"
+            )
+        
+        if selected_x_col and selected_y_col:
+            scatter_dir = f"reports/{data_name}/scatter_plots/"
+            os.makedirs(scatter_dir, exist_ok=True)
+            
+            hue_suffix = f"_{selected_hue_col}" if selected_hue_col else ""
+            scatter_img_path = os.path.join(scatter_dir, f"{selected_x_col}_vs_{selected_y_col}{hue_suffix}.png")
+            
+            # 산점도 생성
+            saved_path = plot_scatter(df, selected_x_col, selected_y_col, selected_hue_col, save_path=scatter_img_path)
+            
+            if saved_path and os.path.exists(saved_path):
+                st.image(saved_path, use_container_width=True)
+                st.success(f"✅ 산점도가 저장되었습니다: {saved_path}")
+            else:
+                st.warning("⚠️ 산점도 생성에 실패했습니다.")
 
 
 
