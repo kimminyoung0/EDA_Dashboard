@@ -2,10 +2,10 @@
 
 import pandas as pd
 import numpy as np
-from scipy import stats
-from statsmodels.formula.api import ols
-import statsmodels.api as sm
-from statsmodels.stats.multicomp import pairwise_tukeyhsd
+from scipy import stats  # type: ignore
+from statsmodels.formula.api import ols  # type: ignore
+import statsmodels.api as sm  # type: ignore
+from statsmodels.stats.multicomp import pairwise_tukeyhsd  # type: ignore
 from itertools import combinations
 
 def remove_outliers_zscore(df, col, threshold=7.0):
@@ -221,8 +221,9 @@ def perform_independent_ttest(df, cat_col, num_col, z_threshold=7.0):
     t_stat, p_value = stats.ttest_ind(data1, data2, equal_var=equal_var)
     
     # 효과 크기 (Cohen's d)
-    pooled_std = np.sqrt(((len(data1) - 1) * data1.std()**2 + (len(data2) - 1) * data2.std()**2) / 
-                          (len(data1) + len(data2) - 2)))
+    numerator = (len(data1) - 1) * data1.std()**2 + (len(data2) - 1) * data2.std()**2
+    denominator = len(data1) + len(data2) - 2
+    pooled_std = np.sqrt(numerator / denominator)
     cohens_d = (data1.mean() - data2.mean()) / pooled_std if pooled_std > 0 else 0
     
     result = {
@@ -287,8 +288,9 @@ def perform_ttest_posthoc(df, cat_col, num_col, z_threshold=7.0, alpha=0.05, cor
         t_stat, p_value = stats.ttest_ind(data1, data2, equal_var=equal_var)
         
         # 효과 크기
-        pooled_std = np.sqrt(((len(data1) - 1) * data1.std()**2 + (len(data2) - 1) * data2.std()**2) / 
-                              (len(data1) + len(data2) - 2)))
+        numerator = (len(data1) - 1) * data1.std()**2 + (len(data2) - 1) * data2.std()**2
+        denominator = len(data1) + len(data2) - 2
+        pooled_std = np.sqrt(numerator / denominator)
         cohens_d = (data1.mean() - data2.mean()) / pooled_std if pooled_std > 0 else 0
         
         results.append({
@@ -311,7 +313,7 @@ def perform_ttest_posthoc(df, cat_col, num_col, z_threshold=7.0, alpha=0.05, cor
     
     # 다중비교 보정
     if correction != 'none':
-        from statsmodels.stats.multitest import multipletests
+        from statsmodels.stats.multitest import multipletests  # type: ignore
         corrected = multipletests(result_df['p-value'], alpha=alpha, method=correction)
         result_df['p-value_corrected'] = corrected[1]
         result_df['Significant'] = corrected[0]

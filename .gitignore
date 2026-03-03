@@ -8,3 +8,4 @@ data/
 .tmp.drivedownload/
 eda_modules/__pycache__/
 reports_catcol/
+app/__pycache__/

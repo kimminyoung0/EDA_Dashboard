@@ -1,5 +1,5 @@
 import sys, os, json, re
-import streamlit as st
+import streamlit as st  # type: ignore
 import pandas as pd
 import numpy as np
 import math
@@ -25,7 +25,7 @@ from eda_modules.cat_statistical_check import (
     perform_ttest_posthoc
 )
 from eda_modules.scatter_plot import plot_scatter
-import streamlit.components.v1 as components 
+import streamlit.components.v1 as components  # type: ignore 
 
 # set_page_config: 앱의 초기 페이지 설정을 지정하는 함수
 st.set_page_config(page_title="EDA Dashboard", layout="wide", #layout = centered
@@ -541,11 +541,11 @@ if uploaded_file:
             if selected_cat_cols_anova:
                 num_factors = len(selected_cat_cols_anova)
                 if num_factors == 1:
-                    st.info(f"ℹ️ **일원배치 ANOVA**: 범주형 변수 1개 선택됨 ({selected_cat_cols_anova[0]})")
+                    st.info(f"ℹ️ 일원배치 ANOVA: 범주형 변수 1개 선택됨 ({selected_cat_cols_anova[0]})")
                 elif num_factors == 2:
-                    st.info(f"ℹ️ **이원배치 ANOVA**: 범주형 변수 2개 선택됨 ({', '.join(selected_cat_cols_anova)})")
+                    st.info(f"ℹ️ 이원배치 ANOVA: 범주형 변수 2개 선택됨 ({', '.join(selected_cat_cols_anova)})")
                 else:
-                    st.info(f"ℹ️ **다원배치 ANOVA**: 범주형 변수 {num_factors}개 선택됨 ({', '.join(selected_cat_cols_anova)})")
+                    st.info(f"ℹ️ 다원배치 ANOVA: 범주형 변수 {num_factors}개 선택됨 ({', '.join(selected_cat_cols_anova)})")
 
             if selected_cat_cols_anova and selected_num_col_anova:
                 st.markdown(f"🧪 Z-Score 방식 이상치 제거 임계값: **7.0**")
