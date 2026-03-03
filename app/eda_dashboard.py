@@ -744,7 +744,8 @@ if uploaded_file:
                 )
             
             if selected_x_col and selected_y_col:
-                fig_scatter = plot_scatter(df, selected_x_col, selected_y_col, selected_hue_col, hover_all_cols=True)
+                # hover_all_cols는 기본값이 True이므로 별도 인자 없이 호출
+                fig_scatter = plot_scatter(df, selected_x_col, selected_y_col, selected_hue_col)
                 
                 if fig_scatter is not None:
                     st.plotly_chart(fig_scatter, use_container_width=True)
