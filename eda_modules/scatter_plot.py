@@ -17,8 +17,20 @@ def plot_scatter(df, x_col, y_col, hue_col=None, hover_all_cols: bool = True):
         hover_all_cols: hover 시 모든 컬럼 정보를 보여줄지 여부
 
     Returns:
-        Plotly Figure 또는 None
+        tuple: (fig, df_clean) 튜플을 반환
+               - fig: Plotly Figure 객체 (데이터가 없으면 None)
+               - df_clean: 정제된 데이터프레임 (데이터가 없으면 None)
     """
+    # 입력 검증
+    if df is None or df.empty:
+        return None, None
+    
+    if x_col not in df.columns or y_col not in df.columns:
+        return None, None
+    
+    if hue_col is not None and hue_col not in df.columns:
+        return None, None
+    
     cols = [x_col, y_col] + ([hue_col] if hue_col else [])
 
     # x, y, hue에 결측이 없는 row만 남기되, 나머지 컬럼은 그대로 유지해서
