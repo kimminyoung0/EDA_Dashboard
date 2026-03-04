@@ -748,17 +748,25 @@ if uploaded_file:
                 result = plot_scatter(df, selected_x_col, selected_y_col, selected_hue_col)
                 
                 # result가 튜플이고 첫 번째 요소가 None이 아닌지 확인
-                try:
-                    if result is not None and len(result) == 2 and result[0] is not None:
-                        fig_scatter, df_clean = result
-                    else:
-                        st.warning("⚠️ 유효한 데이터가 없어 산점도를 그릴 수 없습니다.")
-                        fig_scatter = None
-                except (TypeError, IndexError, AttributeError) as e:
-                    st.warning(f"⚠️ 산점도 생성 중 오류가 발생했습니다: {e}")
-                    fig_scatter = None
+                fig_scatter = None
+                df_clean = None
                 
-                if fig_scatter is not None:
+                if result is not None:
+                    try:
+                        # result가 튜플인지 확인
+                        if hasattr(result, '__len__') and len(result) == 2:
+                            if result[0] is not None:
+                                fig_scatter, df_clean = result
+                            else:
+                                st.warning("⚠️ 유효한 데이터가 없어 산점도를 그릴 수 없습니다.")
+                        else:
+                            st.warning("⚠️ 산점도 함수가 예상과 다른 형식을 반환했습니다.")
+                    except (TypeError, IndexError, AttributeError) as e:
+                        st.warning(f"⚠️ 산점도 생성 중 오류가 발생했습니다: {e}")
+                else:
+                    st.warning("⚠️ 유효한 데이터가 없어 산점도를 그릴 수 없습니다.")
+                
+                if fig_scatter is not None and df_clean is not None:
                     
                     # 산점도 표시
                     event = st.plotly_chart(
