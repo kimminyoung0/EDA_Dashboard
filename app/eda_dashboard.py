@@ -745,26 +745,26 @@ if uploaded_file:
             
             if selected_x_col and selected_y_col:
                 # hover_all_cols는 기본값이 True이므로 별도 인자 없이 호출
-                result = plot_scatter(df, selected_x_col, selected_y_col, selected_hue_col)
-                
-                # result가 튜플이고 첫 번째 요소가 None이 아닌지 확인
-                fig_scatter = None
-                df_clean = None
-                
-                if result is not None:
-                    try:
-                        # result가 튜플인지 확인
-                        if hasattr(result, '__len__') and len(result) == 2:
-                            if result[0] is not None:
-                                fig_scatter, df_clean = result
-                            else:
-                                st.warning("⚠️ 유효한 데이터가 없어 산점도를 그릴 수 없습니다.")
-                        else:
-                            st.warning("⚠️ 산점도 함수가 예상과 다른 형식을 반환했습니다.")
-                    except (TypeError, IndexError, AttributeError) as e:
-                        st.warning(f"⚠️ 산점도 생성 중 오류가 발생했습니다: {e}")
-                else:
-                    st.warning("⚠️ 유효한 데이터가 없어 산점도를 그릴 수 없습니다.")
+                try:
+                    result = plot_scatter(df, selected_x_col, selected_y_col, selected_hue_col)
+                    
+                    # plot_scatter는 항상 (fig, df_clean) 튜플 또는 (None, None)을 반환
+                    if result is None:
+                        st.warning("⚠️ 유효한 데이터가 없어 산점도를 그릴 수 없습니다.")
+                        fig_scatter = None
+                        df_clean = None
+                    else:
+                        # result는 항상 튜플이어야 함
+                        fig_scatter, df_clean = result
+                        
+                        if fig_scatter is None or df_clean is None:
+                            st.warning("⚠️ 유효한 데이터가 없어 산점도를 그릴 수 없습니다.")
+                            fig_scatter = None
+                            df_clean = None
+                except Exception as e:
+                    st.error(f"❌ 산점도 생성 중 오류가 발생했습니다: {e}")
+                    fig_scatter = None
+                    df_clean = None
                 
                 if fig_scatter is not None and df_clean is not None:
                     
