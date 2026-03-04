@@ -745,10 +745,54 @@ if uploaded_file:
             
             if selected_x_col and selected_y_col:
                 # hover_all_cols는 기본값이 True이므로 별도 인자 없이 호출
-                fig_scatter = plot_scatter(df, selected_x_col, selected_y_col, selected_hue_col)
+                result = plot_scatter(df, selected_x_col, selected_y_col, selected_hue_col)
                 
-                if fig_scatter is not None:
-                    st.plotly_chart(fig_scatter, use_container_width=True)
+                if result is not None and result[0] is not None:
+                    fig_scatter, df_clean = result
+                    
+                    # 선택된 데이터를 저장할 session_state 초기화
+                    if "scatter_selected_indices" not in st.session_state:
+                        st.session_state.scatter_selected_indices = []
+                    
+                    # 산점도 표시 (on_select 콜백 사용)
+                    def on_select(selection_data):
+                        """선택된 점들의 인덱스를 session_state에 저장"""
+                        if selection_data and "selection" in selection_data:
+                            selection = selection_data["selection"]
+                            point_indices = []
+                            
+                            if "points" in selection:
+                                for point in selection["points"]:
+                                    if "pointIndex" in point:
+                                        point_indices.append(point["pointIndex"])
+                                    elif "pointNumber" in point:
+                                        point_indices.append(point["pointNumber"])
+                            
+                            st.session_state.scatter_selected_indices = point_indices
+                    
+                    st.plotly_chart(
+                        fig_scatter, 
+                        use_container_width=True, 
+                        key="scatter_plot",
+                        on_select=on_select
+                    )
+                    
+                    # 선택된 데이터 표시 영역
+                    st.markdown("---")
+                    st.subheader("📋 선택된 데이터")
+                    st.caption("💡 그래프에서 점을 클릭하거나 드래그로 영역을 선택하면 해당 데이터가 아래에 표시됩니다.")
+                    
+                    # 선택된 인덱스가 있으면 해당 row들 표시
+                    if st.session_state.scatter_selected_indices:
+                        try:
+                            selected_rows = df_clean.iloc[st.session_state.scatter_selected_indices]
+                            st.dataframe(selected_rows, use_container_width=True)
+                            st.info(f"✅ {len(selected_rows)}개의 데이터 포인트가 선택되었습니다.")
+                        except Exception as e:
+                            st.warning(f"⚠️ 데이터 선택 처리 중 오류: {e}")
+                            st.info("📌 그래프에서 점을 다시 선택해주세요.")
+                    else:
+                        st.info("📌 그래프에서 점을 클릭하거나 드래그로 영역을 선택해주세요.")
                 else:
                     st.warning("⚠️ 유효한 데이터가 없어 산점도를 그릴 수 없습니다.")
 
