@@ -747,7 +747,7 @@ if uploaded_file:
                 # hover_all_cols는 기본값이 True이므로 별도 인자 없이 호출
                 result = plot_scatter(df, selected_x_col, selected_y_col, selected_hue_col)
                 
-                if result is not None and result[0] is not None:
+                if result is not None and isinstance(result, tuple) and len(result) == 2 and result[0] is not None:
                     fig_scatter, df_clean = result
                     
                     # 산점도 표시
