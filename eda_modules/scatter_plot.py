@@ -8,7 +8,7 @@ import seaborn as sns
 import os
 
 # 한글 폰트 설정 (Windows 기준: Malgun Gothic)
-matplotlib.rcParams["font.family"] = "Gulim"
+matplotlib.rcParams["font.family"] = "Malgun Gothic"
 matplotlib.rcParams["axes.unicode_minus"] = False
 
 def plot_scatter(df, x_col, y_col, hue_col=None, save_path=None, figsize=(8, 6)):

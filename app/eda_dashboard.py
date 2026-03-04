@@ -5,6 +5,9 @@ import numpy as np
 import math
 import matplotlib  # type: ignore
 
+matplotlib.rcParams["font.family"] = "Malgun Gothic"
+matplotlib.rcParams["axes.unicode_minus"] = False
+
 # 현재 파일 기준 상위 디렉토리(DataAnalysis)를 모듈 경로에 추가
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
