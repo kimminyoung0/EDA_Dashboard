@@ -748,67 +748,84 @@ if uploaded_file:
             
             if selected_x_col and selected_y_col:
                 try:
-                    # Plotly 산점도 생성
-                    result = plot_scatter(df, selected_x_col, selected_y_col, selected_hue_col)
+                    # 정제된 데이터프레임 생성 (선택된 데이터 표시용)
+                    cols = [selected_x_col, selected_y_col] + ([selected_hue_col] if selected_hue_col else [])
+                    df_clean = df[cols].dropna().copy()
                     
-                    # result가 튜플인지 확인
-                    if result is None:
+                    if df_clean.empty:
                         st.warning("⚠️ 유효한 데이터가 없어 산점도를 그릴 수 없습니다.")
-                    elif isinstance(result, tuple) and len(result) == 2:
-                        fig_scatter, df_clean = result
+                    else:
+                        # Plotly 산점도 생성
+                        result = plot_scatter(df, selected_x_col, selected_y_col, selected_hue_col)
                         
-                        if fig_scatter is None or df_clean is None or df_clean.empty:
+                        # result가 튜플인지 확인하고 처리
+                        if result is None:
                             st.warning("⚠️ 유효한 데이터가 없어 산점도를 그릴 수 없습니다.")
                         else:
-                            # Plotly 산점도 표시
-                            st.plotly_chart(fig_scatter, use_container_width=True, key="scatter_plot")
-                            st.caption("💡 점에 마우스를 올리면 X, Y 값이 표시됩니다.")
+                            # result가 튜플인지 확인
+                            try:
+                                if isinstance(result, tuple) and len(result) == 2:
+                                    fig_scatter, df_clean_from_func = result
+                                    # df_clean_from_func가 있으면 사용, 없으면 위에서 만든 df_clean 사용
+                                    if df_clean_from_func is not None and not df_clean_from_func.empty:
+                                        df_clean = df_clean_from_func
+                                else:
+                                    # result가 Figure 객체인 경우
+                                    fig_scatter = result
+                            except (TypeError, AttributeError):
+                                # result가 Figure 객체인 경우
+                                fig_scatter = result
                             
-                            # 선택된 데이터 표시 영역
-                            st.markdown("---")
-                            st.subheader("📋 데이터 확인")
-                            st.caption("💡 아래에서 특정 행의 데이터를 확인할 수 있습니다.")
-                            
-                            # 수동으로 인덱스 입력받기
-                            st.markdown("**행 인덱스 입력:**")
-                            selected_indices_input = st.text_input(
-                                "확인할 행 인덱스 입력 (쉼표로 구분, 예: 0,5,10)",
-                                key="manual_indices",
-                                help="예: 0,5,10 또는 0-10 (범위)"
-                            )
-                            
-                            if selected_indices_input:
-                                try:
-                                    indices = []
-                                    # 범위 처리 (예: 0-10)
-                                    if '-' in selected_indices_input and ',' not in selected_indices_input:
-                                        start, end = map(int, selected_indices_input.split('-'))
-                                        indices = list(range(start, end + 1))
-                                    else:
-                                        # 쉼표로 구분된 인덱스
-                                        indices = [int(x.strip()) for x in selected_indices_input.split(',')]
-                                    
-                                    # 유효한 인덱스만 필터링
-                                    valid_indices = [i for i in indices if 0 <= i < len(df_clean)]
-                                    
-                                    if valid_indices:
-                                        selected_rows = df_clean.iloc[valid_indices]
-                                        st.dataframe(selected_rows, use_container_width=True)
-                                        st.success(f"✅ {len(selected_rows)}개의 데이터 포인트가 표시되었습니다.")
-                                    else:
-                                        st.warning("⚠️ 유효한 인덱스가 없습니다.")
-                                except ValueError:
-                                    st.error("❌ 인덱스 형식이 올바르지 않습니다. 숫자만 입력해주세요.")
-                                except Exception as e:
-                                    st.error(f"❌ 오류 발생: {e}")
+                            if fig_scatter is None:
+                                st.warning("⚠️ 유효한 데이터가 없어 산점도를 그릴 수 없습니다.")
                             else:
-                                # 전체 데이터 미리보기
-                                st.markdown("**전체 데이터 미리보기:**")
-                                st.dataframe(df_clean.head(100), use_container_width=True)
-                                if len(df_clean) > 100:
-                                    st.caption(f"총 {len(df_clean)}개의 행 중 처음 100개만 표시됩니다.")
-                    else:
-                        st.error(f"❌ 산점도 함수가 예상과 다른 형식을 반환했습니다. (타입: {type(result)})")
+                                # Plotly 산점도 표시
+                                st.plotly_chart(fig_scatter, use_container_width=True, key="scatter_plot")
+                                st.caption("💡 점에 마우스를 올리면 X, Y 값이 표시됩니다.")
+                                
+                                # 선택된 데이터 표시 영역
+                                st.markdown("---")
+                                st.subheader("📋 데이터 확인")
+                                st.caption("💡 아래에서 특정 행의 데이터를 확인할 수 있습니다.")
+                                
+                                # 수동으로 인덱스 입력받기
+                                st.markdown("**행 인덱스 입력:**")
+                                selected_indices_input = st.text_input(
+                                    "확인할 행 인덱스 입력 (쉼표로 구분, 예: 0,5,10)",
+                                    key="manual_indices",
+                                    help="예: 0,5,10 또는 0-10 (범위)"
+                                )
+                                
+                                if selected_indices_input:
+                                    try:
+                                        indices = []
+                                        # 범위 처리 (예: 0-10)
+                                        if '-' in selected_indices_input and ',' not in selected_indices_input:
+                                            start, end = map(int, selected_indices_input.split('-'))
+                                            indices = list(range(start, end + 1))
+                                        else:
+                                            # 쉼표로 구분된 인덱스
+                                            indices = [int(x.strip()) for x in selected_indices_input.split(',')]
+                                        
+                                        # 유효한 인덱스만 필터링
+                                        valid_indices = [i for i in indices if 0 <= i < len(df_clean)]
+                                        
+                                        if valid_indices:
+                                            selected_rows = df_clean.iloc[valid_indices]
+                                            st.dataframe(selected_rows, use_container_width=True)
+                                            st.success(f"✅ {len(selected_rows)}개의 데이터 포인트가 표시되었습니다.")
+                                        else:
+                                            st.warning("⚠️ 유효한 인덱스가 없습니다.")
+                                    except ValueError:
+                                        st.error("❌ 인덱스 형식이 올바르지 않습니다. 숫자만 입력해주세요.")
+                                    except Exception as e:
+                                        st.error(f"❌ 오류 발생: {e}")
+                                else:
+                                    # 전체 데이터 미리보기
+                                    st.markdown("**전체 데이터 미리보기:**")
+                                    st.dataframe(df_clean.head(100), use_container_width=True)
+                                    if len(df_clean) > 100:
+                                        st.caption(f"총 {len(df_clean)}개의 행 중 처음 100개만 표시됩니다.")
                             
                 except Exception as e:
                     st.error(f"❌ 산점도 생성 중 오류가 발생했습니다: {str(e)}")
