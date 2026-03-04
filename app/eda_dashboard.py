@@ -747,8 +747,18 @@ if uploaded_file:
                 # hover_all_cols는 기본값이 True이므로 별도 인자 없이 호출
                 result = plot_scatter(df, selected_x_col, selected_y_col, selected_hue_col)
                 
-                if result is not None and isinstance(result, tuple) and len(result) == 2 and result[0] is not None:
-                    fig_scatter, df_clean = result
+                # result가 튜플이고 첫 번째 요소가 None이 아닌지 확인
+                try:
+                    if result is not None and len(result) == 2 and result[0] is not None:
+                        fig_scatter, df_clean = result
+                    else:
+                        st.warning("⚠️ 유효한 데이터가 없어 산점도를 그릴 수 없습니다.")
+                        fig_scatter = None
+                except (TypeError, IndexError, AttributeError) as e:
+                    st.warning(f"⚠️ 산점도 생성 중 오류가 발생했습니다: {e}")
+                    fig_scatter = None
+                
+                if fig_scatter is not None:
                     
                     # 산점도 표시
                     event = st.plotly_chart(
