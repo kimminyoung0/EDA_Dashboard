@@ -750,31 +750,12 @@ if uploaded_file:
                 if result is not None and result[0] is not None:
                     fig_scatter, df_clean = result
                     
-                    # 선택된 데이터를 저장할 session_state 초기화
-                    if "scatter_selected_indices" not in st.session_state:
-                        st.session_state.scatter_selected_indices = []
-                    
-                    # 산점도 표시 (on_select 콜백 사용)
-                    def on_select(selection_data):
-                        """선택된 점들의 인덱스를 session_state에 저장"""
-                        if selection_data and "selection" in selection_data:
-                            selection = selection_data["selection"]
-                            point_indices = []
-                            
-                            if "points" in selection:
-                                for point in selection["points"]:
-                                    if "pointIndex" in point:
-                                        point_indices.append(point["pointIndex"])
-                                    elif "pointNumber" in point:
-                                        point_indices.append(point["pointNumber"])
-                            
-                            st.session_state.scatter_selected_indices = point_indices
-                    
-                    st.plotly_chart(
+                    # 산점도 표시
+                    event = st.plotly_chart(
                         fig_scatter, 
                         use_container_width=True, 
                         key="scatter_plot",
-                        on_select=on_select
+                        on_select="rerun"  # 선택 시 앱 재실행
                     )
                     
                     # 선택된 데이터 표시 영역
@@ -782,17 +763,72 @@ if uploaded_file:
                     st.subheader("📋 선택된 데이터")
                     st.caption("💡 그래프에서 점을 클릭하거나 드래그로 영역을 선택하면 해당 데이터가 아래에 표시됩니다.")
                     
-                    # 선택된 인덱스가 있으면 해당 row들 표시
-                    if st.session_state.scatter_selected_indices:
+                    # 선택 이벤트 처리
+                    if event and "selection" in event:
                         try:
-                            selected_rows = df_clean.iloc[st.session_state.scatter_selected_indices]
-                            st.dataframe(selected_rows, use_container_width=True)
-                            st.info(f"✅ {len(selected_rows)}개의 데이터 포인트가 선택되었습니다.")
+                            selection = event["selection"]
+                            point_indices = []
+                            
+                            # Plotly의 선택 데이터에서 인덱스 추출
+                            if "points" in selection:
+                                for point in selection["points"]:
+                                    # pointIndex 또는 pointNumber 사용
+                                    idx = point.get("pointIndex") or point.get("pointNumber")
+                                    if idx is not None:
+                                        point_indices.append(int(idx))
+                            
+                            if point_indices:
+                                # 중복 제거 및 정렬
+                                point_indices = sorted(set(point_indices))
+                                # 유효한 인덱스만 필터링
+                                valid_indices = [i for i in point_indices if 0 <= i < len(df_clean)]
+                                
+                                if valid_indices:
+                                    selected_rows = df_clean.iloc[valid_indices]
+                                    st.dataframe(selected_rows, use_container_width=True)
+                                    st.success(f"✅ {len(selected_rows)}개의 데이터 포인트가 선택되었습니다.")
+                                else:
+                                    st.info("📌 선택된 인덱스가 유효하지 않습니다.")
+                            else:
+                                st.info("📌 그래프에서 점을 클릭하거나 드래그로 영역을 선택해주세요.")
                         except Exception as e:
                             st.warning(f"⚠️ 데이터 선택 처리 중 오류: {e}")
                             st.info("📌 그래프에서 점을 다시 선택해주세요.")
                     else:
-                        st.info("📌 그래프에서 점을 클릭하거나 드래그로 영역을 선택해주세요.")
+                        # 대안: 수동으로 인덱스 입력받기
+                        st.markdown("**또는 수동으로 인덱스 입력:**")
+                        selected_indices_input = st.text_input(
+                            "선택할 행 인덱스 입력 (쉼표로 구분, 예: 0,5,10)",
+                            key="manual_indices",
+                            help="예: 0,5,10 또는 0-10 (범위)"
+                        )
+                        
+                        if selected_indices_input:
+                            try:
+                                indices = []
+                                # 범위 처리 (예: 0-10)
+                                if '-' in selected_indices_input and ',' not in selected_indices_input:
+                                    start, end = map(int, selected_indices_input.split('-'))
+                                    indices = list(range(start, end + 1))
+                                else:
+                                    # 쉼표로 구분된 인덱스
+                                    indices = [int(x.strip()) for x in selected_indices_input.split(',')]
+                                
+                                # 유효한 인덱스만 필터링
+                                valid_indices = [i for i in indices if 0 <= i < len(df_clean)]
+                                
+                                if valid_indices:
+                                    selected_rows = df_clean.iloc[valid_indices]
+                                    st.dataframe(selected_rows, use_container_width=True)
+                                    st.success(f"✅ {len(selected_rows)}개의 데이터 포인트가 표시되었습니다.")
+                                else:
+                                    st.warning("⚠️ 유효한 인덱스가 없습니다.")
+                            except ValueError:
+                                st.error("❌ 인덱스 형식이 올바르지 않습니다. 숫자만 입력해주세요.")
+                            except Exception as e:
+                                st.error(f"❌ 오류 발생: {e}")
+                        else:
+                            st.info("📌 그래프에서 점을 클릭하거나 드래그로 영역을 선택해주세요.")
                 else:
                     st.warning("⚠️ 유효한 데이터가 없어 산점도를 그릴 수 없습니다.")
 

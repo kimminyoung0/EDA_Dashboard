@@ -50,13 +50,15 @@ def plot_scatter(df, x_col, y_col, hue_col=None, hover_all_cols: bool = True):
         font=dict(family="Malgun Gothic"),
         legend_title=hue_col if hue_col else "",
         dragmode='select',  # 박스 선택 모드 활성화
-        selectdirection='h',  # 수평/수직 선택 가능
+        selectdirection='diagonal',  # 대각선 선택 가능 (모든 방향)
     )
 
-    fig.update_traces(
-        marker=dict(size=7),
-        selected=dict(marker=dict(size=10, color='red', opacity=1.0)),  # 선택된 점 강조
-        unselected=dict(marker=dict(opacity=0.7))
-    )
+    # 모든 trace에 대해 선택 모드 활성화
+    for trace in fig.data:
+        trace.update(
+            selected=dict(marker=dict(size=12, color='red', opacity=1.0, line=dict(width=2, color='darkred'))),
+            unselected=dict(marker=dict(opacity=0.3)),
+            marker=dict(size=7)
+        )
 
     return fig, df_clean  # df_clean도 반환해서 선택된 인덱스로 row를 찾을 수 있게 함
