@@ -748,72 +748,61 @@ if uploaded_file:
             
             if selected_x_col and selected_y_col:
                 try:
-                    # 정제된 데이터프레임 생성 (선택된 데이터 표시용)
-                    cols = [selected_x_col, selected_y_col] + ([selected_hue_col] if selected_hue_col else [])
-                    df_clean = df[cols].dropna().copy()
+                    # Plotly 산점도 생성
+                    result = plot_scatter(df, selected_x_col, selected_y_col, selected_hue_col)
                     
-                    if df_clean.empty:
+                    if result is None or result[0] is None:
                         st.warning("⚠️ 유효한 데이터가 없어 산점도를 그릴 수 없습니다.")
                     else:
-                        # 산점도 저장 경로 설정
-                        scatter_dir = f"reports/{data_name}/scatter_plots/"
-                        os.makedirs(scatter_dir, exist_ok=True)
+                        fig_scatter, df_clean = result
                         
-                        hue_suffix = f"_{selected_hue_col}" if selected_hue_col else ""
-                        scatter_img_path = os.path.join(scatter_dir, f"{selected_x_col}_vs_{selected_y_col}{hue_suffix}.png")
+                        # Plotly 산점도 표시
+                        st.plotly_chart(fig_scatter, use_container_width=True, key="scatter_plot")
+                        st.caption("💡 점에 마우스를 올리면 X, Y 값이 표시됩니다.")
                         
-                        # 산점도 생성 및 저장
-                        saved_path = plot_scatter(df, selected_x_col, selected_y_col, selected_hue_col, save_path=scatter_img_path)
+                        # 선택된 데이터 표시 영역
+                        st.markdown("---")
+                        st.subheader("📋 데이터 확인")
+                        st.caption("💡 아래에서 특정 행의 데이터를 확인할 수 있습니다.")
                         
-                        if saved_path and os.path.exists(saved_path):
-                            st.image(saved_path, use_container_width=True)
-                            st.success(f"✅ 산점도가 저장되었습니다: {saved_path}")
-                            
-                            # 선택된 데이터 표시 영역
-                            st.markdown("---")
-                            st.subheader("📋 데이터 확인")
-                            st.caption("💡 아래에서 특정 행의 데이터를 확인할 수 있습니다.")
-                            
-                            # 수동으로 인덱스 입력받기
-                            st.markdown("**행 인덱스 입력:**")
-                            selected_indices_input = st.text_input(
-                                "확인할 행 인덱스 입력 (쉼표로 구분, 예: 0,5,10)",
-                                key="manual_indices",
-                                help="예: 0,5,10 또는 0-10 (범위)"
-                            )
-                            
-                            if selected_indices_input:
-                                try:
-                                    indices = []
-                                    # 범위 처리 (예: 0-10)
-                                    if '-' in selected_indices_input and ',' not in selected_indices_input:
-                                        start, end = map(int, selected_indices_input.split('-'))
-                                        indices = list(range(start, end + 1))
-                                    else:
-                                        # 쉼표로 구분된 인덱스
-                                        indices = [int(x.strip()) for x in selected_indices_input.split(',')]
-                                    
-                                    # 유효한 인덱스만 필터링
-                                    valid_indices = [i for i in indices if 0 <= i < len(df_clean)]
-                                    
-                                    if valid_indices:
-                                        selected_rows = df_clean.iloc[valid_indices]
-                                        st.dataframe(selected_rows, use_container_width=True)
-                                        st.success(f"✅ {len(selected_rows)}개의 데이터 포인트가 표시되었습니다.")
-                                    else:
-                                        st.warning("⚠️ 유효한 인덱스가 없습니다.")
-                                except ValueError:
-                                    st.error("❌ 인덱스 형식이 올바르지 않습니다. 숫자만 입력해주세요.")
-                                except Exception as e:
-                                    st.error(f"❌ 오류 발생: {e}")
-                            else:
-                                # 전체 데이터 미리보기
-                                st.markdown("**전체 데이터 미리보기:**")
-                                st.dataframe(df_clean.head(100), use_container_width=True)
-                                if len(df_clean) > 100:
-                                    st.caption(f"총 {len(df_clean)}개의 행 중 처음 100개만 표시됩니다.")
+                        # 수동으로 인덱스 입력받기
+                        st.markdown("**행 인덱스 입력:**")
+                        selected_indices_input = st.text_input(
+                            "확인할 행 인덱스 입력 (쉼표로 구분, 예: 0,5,10)",
+                            key="manual_indices",
+                            help="예: 0,5,10 또는 0-10 (범위)"
+                        )
+                        
+                        if selected_indices_input:
+                            try:
+                                indices = []
+                                # 범위 처리 (예: 0-10)
+                                if '-' in selected_indices_input and ',' not in selected_indices_input:
+                                    start, end = map(int, selected_indices_input.split('-'))
+                                    indices = list(range(start, end + 1))
+                                else:
+                                    # 쉼표로 구분된 인덱스
+                                    indices = [int(x.strip()) for x in selected_indices_input.split(',')]
+                                
+                                # 유효한 인덱스만 필터링
+                                valid_indices = [i for i in indices if 0 <= i < len(df_clean)]
+                                
+                                if valid_indices:
+                                    selected_rows = df_clean.iloc[valid_indices]
+                                    st.dataframe(selected_rows, use_container_width=True)
+                                    st.success(f"✅ {len(selected_rows)}개의 데이터 포인트가 표시되었습니다.")
+                                else:
+                                    st.warning("⚠️ 유효한 인덱스가 없습니다.")
+                            except ValueError:
+                                st.error("❌ 인덱스 형식이 올바르지 않습니다. 숫자만 입력해주세요.")
+                            except Exception as e:
+                                st.error(f"❌ 오류 발생: {e}")
                         else:
-                            st.warning("⚠️ 산점도 생성에 실패했습니다.")
+                            # 전체 데이터 미리보기
+                            st.markdown("**전체 데이터 미리보기:**")
+                            st.dataframe(df_clean.head(100), use_container_width=True)
+                            if len(df_clean) > 100:
+                                st.caption(f"총 {len(df_clean)}개의 행 중 처음 100개만 표시됩니다.")
                             
                 except Exception as e:
                     st.error(f"❌ 산점도 생성 중 오류가 발생했습니다: {str(e)}")

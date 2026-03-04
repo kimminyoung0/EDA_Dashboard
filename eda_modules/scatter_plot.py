@@ -2,53 +2,61 @@
 
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib  # type: ignore
-import seaborn as sns
-import os
+import plotly.express as px  # type: ignore
 
-# 한글 폰트 설정 (Windows 기준: Malgun Gothic)
-matplotlib.rcParams["font.family"] = "Malgun Gothic"
-matplotlib.rcParams["axes.unicode_minus"] = False
-
-def plot_scatter(df, x_col, y_col, hue_col=None, save_path=None, figsize=(8, 6)):
+def plot_scatter(df, x_col, y_col, hue_col=None):
     """
-    산점도 그리기
+    Plotly 산점도 (인터랙티브)
     
     Parameters:
         df: 데이터프레임
         x_col: X축 변수명
         y_col: Y축 변수명
         hue_col: 색상 구분 변수명 (선택사항)
-        save_path: 저장 경로 (선택사항)
-        figsize: 그래프 크기
     
     Returns:
-        저장 경로 또는 None
+        tuple: (fig, df_clean) 튜플을 반환
+               - fig: Plotly Figure 객체 (데이터가 없으면 None)
+               - df_clean: 정제된 데이터프레임 (데이터가 없으면 None)
     """
-    df_clean = df[[x_col, y_col] + ([hue_col] if hue_col else [])].dropna()
+    # 입력 검증
+    if df is None or df.empty:
+        return None, None
     
-    if len(df_clean) == 0:
-        return None
+    if x_col not in df.columns or y_col not in df.columns:
+        return None, None
     
-    fig, ax = plt.subplots(figsize=figsize)
+    if hue_col is not None and hue_col not in df.columns:
+        return None, None
     
-    if hue_col:
-        sns.scatterplot(data=df_clean, x=x_col, y=y_col, hue=hue_col, ax=ax, alpha=0.6)
-    else:
-        sns.scatterplot(data=df_clean, x=x_col, y=y_col, ax=ax, alpha=0.6)
+    cols = [x_col, y_col] + ([hue_col] if hue_col else [])
     
-    ax.set_xlabel(x_col, fontsize=12)
-    ax.set_ylabel(y_col, fontsize=12)
-    ax.set_title(f"Scatter Plot: {x_col} vs {y_col}", fontsize=14)
-    ax.grid(True, linestyle='--', alpha=0.3)
+    # x, y, hue에 결측이 없는 row만 남기되, 나머지 컬럼은 그대로 유지
+    df_clean = df.dropna(subset=cols).copy()
     
-    plt.tight_layout()
+    if df_clean.empty:
+        return None, None
     
-    if save_path:
-        os.makedirs(os.path.dirname(save_path), exist_ok=True)
-        fig.savefig(save_path, dpi=300, bbox_inches='tight')
-        plt.close(fig)
-        return save_path
-    else:
-        return fig
+    # Plotly 산점도 생성
+    fig = px.scatter(
+        df_clean,
+        x=x_col,
+        y=y_col,
+        color=hue_col,
+        hover_data={x_col: True, y_col: True},  # hover에 x, y 값 표시
+        opacity=0.7,
+    )
+    
+    # 레이아웃 설정
+    fig.update_layout(
+        title=f"Scatter Plot: {x_col} vs {y_col}",
+        xaxis_title=x_col,
+        yaxis_title=y_col,
+        font=dict(family="Malgun Gothic"),
+        legend_title=hue_col if hue_col else "",
+    )
+    
+    # 마커 크기 설정
+    fig.update_traces(marker=dict(size=7))
+    
+    return fig, df_clean
