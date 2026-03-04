@@ -1,76 +1,49 @@
- # eda_modules/scatter_plot.py
+# eda_modules/scatter_plot.py
 
 import pandas as pd
 import numpy as np
-import plotly.express as px  # type: ignore
+import matplotlib.pyplot as plt
+import seaborn as sns
+import os
 
-
-def plot_scatter(df, x_col, y_col, hue_col=None, hover_all_cols: bool = True):
+def plot_scatter(df, x_col, y_col, hue_col=None, save_path=None, figsize=(8, 6)):
     """
-    Plotly 산점도 (인터랙티브)
-
+    산점도 그리기
+    
     Parameters:
         df: 데이터프레임
         x_col: X축 변수명
         y_col: Y축 변수명
         hue_col: 색상 구분 변수명 (선택사항)
-        hover_all_cols: hover 시 모든 컬럼 정보를 보여줄지 여부
-
+        save_path: 저장 경로 (선택사항)
+        figsize: 그래프 크기
+    
     Returns:
-        tuple: (fig, df_clean) 튜플을 반환
-               - fig: Plotly Figure 객체 (데이터가 없으면 None)
-               - df_clean: 정제된 데이터프레임 (데이터가 없으면 None)
+        저장 경로 또는 None
     """
-    # 입력 검증
-    if df is None or df.empty:
-        return None, None
+    df_clean = df[[x_col, y_col] + ([hue_col] if hue_col else [])].dropna()
     
-    if x_col not in df.columns or y_col not in df.columns:
-        return None, None
+    if len(df_clean) == 0:
+        return None
     
-    if hue_col is not None and hue_col not in df.columns:
-        return None, None
+    fig, ax = plt.subplots(figsize=figsize)
     
-    cols = [x_col, y_col] + ([hue_col] if hue_col else [])
-
-    # x, y, hue에 결측이 없는 row만 남기되, 나머지 컬럼은 그대로 유지해서
-    # hover에서 전체 row 정보를 볼 수 있게 함
-    df_clean = df.dropna(subset=cols).copy()
-
-    if df_clean.empty:
-        return None, None
-
-    # hover에 전체 row 정보를 넣고 싶으면 hover_data에 모든 컬럼 전달
-    if hover_all_cols:
-        hover_data = {col: True for col in df_clean.columns}
+    if hue_col:
+        sns.scatterplot(data=df_clean, x=x_col, y=y_col, hue=hue_col, ax=ax, alpha=0.6)
     else:
-        hover_data = {col: True for col in cols}
-
-    fig = px.scatter(
-        df_clean,
-        x=x_col,
-        y=y_col,
-        color=hue_col,
-        hover_data=hover_data,
-        opacity=0.7,
-    )
-
-    fig.update_layout(
-        title=f"Scatter Plot: {x_col} vs {y_col}",
-        xaxis_title=x_col,
-        yaxis_title=y_col,
-        font=dict(family="Malgun Gothic"),
-        legend_title=hue_col if hue_col else "",
-        dragmode='select',  # 박스 선택 모드 활성화
-        selectdirection='diagonal',  # 대각선 선택 가능 (모든 방향)
-    )
-
-    # 모든 trace에 대해 선택 모드 활성화
-    for trace in fig.data:
-        trace.update(
-            selected=dict(marker=dict(size=12, color='red', opacity=1.0, line=dict(width=2, color='darkred'))),
-            unselected=dict(marker=dict(opacity=0.3)),
-            marker=dict(size=7)
-        )
-
-    return fig, df_clean  # df_clean도 반환해서 선택된 인덱스로 row를 찾을 수 있게 함
+        sns.scatterplot(data=df_clean, x=x_col, y=y_col, ax=ax, alpha=0.6)
+    
+    ax.set_xlabel(x_col, fontsize=12)
+    ax.set_ylabel(y_col, fontsize=12)
+    ax.set_title(f"Scatter Plot: {x_col} vs {y_col}", fontsize=14)
+    ax.grid(True, linestyle='--', alpha=0.3)
+    
+    plt.tight_layout()
+    
+    if save_path:
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)
+        fig.savefig(save_path, dpi=300, bbox_inches='tight')
+        plt.close(fig)
+        return save_path
+    else:
+        return fig

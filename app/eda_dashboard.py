@@ -744,118 +744,78 @@ if uploaded_file:
                 )
             
             if selected_x_col and selected_y_col:
-                # hover_all_cols는 기본값이 True이므로 별도 인자 없이 호출
-                fig_scatter = None
-                df_clean = None
-                
                 try:
-                    result = plot_scatter(df, selected_x_col, selected_y_col, selected_hue_col)
+                    # 정제된 데이터프레임 생성 (선택된 데이터 표시용)
+                    cols = [selected_x_col, selected_y_col] + ([selected_hue_col] if selected_hue_col else [])
+                    df_clean = df[cols].dropna().copy()
                     
-                    # plot_scatter는 항상 (fig, df_clean) 튜플을 반환
-                    # result가 튜플이고 길이가 2인지 확인
-                    if isinstance(result, tuple) and len(result) == 2:
-                        fig_scatter, df_clean = result
-                        
-                        # 둘 중 하나라도 None이면 데이터가 없는 것
-                        if fig_scatter is None or df_clean is None or df_clean.empty:
-                            st.warning("⚠️ 유효한 데이터가 없어 산점도를 그릴 수 없습니다.")
-                            fig_scatter = None
-                            df_clean = None
+                    if df_clean.empty:
+                        st.warning("⚠️ 유효한 데이터가 없어 산점도를 그릴 수 없습니다.")
                     else:
-                        st.error(f"❌ 산점도 함수가 예상과 다른 형식을 반환했습니다. (타입: {type(result)})")
-                        fig_scatter = None
-                        df_clean = None
+                        # 산점도 저장 경로 설정
+                        scatter_dir = f"reports/{data_name}/scatter_plots/"
+                        os.makedirs(scatter_dir, exist_ok=True)
                         
+                        hue_suffix = f"_{selected_hue_col}" if selected_hue_col else ""
+                        scatter_img_path = os.path.join(scatter_dir, f"{selected_x_col}_vs_{selected_y_col}{hue_suffix}.png")
+                        
+                        # 산점도 생성 및 저장
+                        saved_path = plot_scatter(df, selected_x_col, selected_y_col, selected_hue_col, save_path=scatter_img_path)
+                        
+                        if saved_path and os.path.exists(saved_path):
+                            st.image(saved_path, use_container_width=True)
+                            st.success(f"✅ 산점도가 저장되었습니다: {saved_path}")
+                            
+                            # 선택된 데이터 표시 영역
+                            st.markdown("---")
+                            st.subheader("📋 데이터 확인")
+                            st.caption("💡 아래에서 특정 행의 데이터를 확인할 수 있습니다.")
+                            
+                            # 수동으로 인덱스 입력받기
+                            st.markdown("**행 인덱스 입력:**")
+                            selected_indices_input = st.text_input(
+                                "확인할 행 인덱스 입력 (쉼표로 구분, 예: 0,5,10)",
+                                key="manual_indices",
+                                help="예: 0,5,10 또는 0-10 (범위)"
+                            )
+                            
+                            if selected_indices_input:
+                                try:
+                                    indices = []
+                                    # 범위 처리 (예: 0-10)
+                                    if '-' in selected_indices_input and ',' not in selected_indices_input:
+                                        start, end = map(int, selected_indices_input.split('-'))
+                                        indices = list(range(start, end + 1))
+                                    else:
+                                        # 쉼표로 구분된 인덱스
+                                        indices = [int(x.strip()) for x in selected_indices_input.split(',')]
+                                    
+                                    # 유효한 인덱스만 필터링
+                                    valid_indices = [i for i in indices if 0 <= i < len(df_clean)]
+                                    
+                                    if valid_indices:
+                                        selected_rows = df_clean.iloc[valid_indices]
+                                        st.dataframe(selected_rows, use_container_width=True)
+                                        st.success(f"✅ {len(selected_rows)}개의 데이터 포인트가 표시되었습니다.")
+                                    else:
+                                        st.warning("⚠️ 유효한 인덱스가 없습니다.")
+                                except ValueError:
+                                    st.error("❌ 인덱스 형식이 올바르지 않습니다. 숫자만 입력해주세요.")
+                                except Exception as e:
+                                    st.error(f"❌ 오류 발생: {e}")
+                            else:
+                                # 전체 데이터 미리보기
+                                st.markdown("**전체 데이터 미리보기:**")
+                                st.dataframe(df_clean.head(100), use_container_width=True)
+                                if len(df_clean) > 100:
+                                    st.caption(f"총 {len(df_clean)}개의 행 중 처음 100개만 표시됩니다.")
+                        else:
+                            st.warning("⚠️ 산점도 생성에 실패했습니다.")
+                            
                 except Exception as e:
                     st.error(f"❌ 산점도 생성 중 오류가 발생했습니다: {str(e)}")
                     import traceback
                     st.code(traceback.format_exc())
-                    fig_scatter = None
-                    df_clean = None
-                
-                if fig_scatter is not None and df_clean is not None:
-                    
-                    # 산점도 표시
-                    event = st.plotly_chart(
-                        fig_scatter, 
-                        use_container_width=True, 
-                        key="scatter_plot",
-                        on_select="rerun"  # 선택 시 앱 재실행
-                    )
-                    
-                    # 선택된 데이터 표시 영역
-                    st.markdown("---")
-                    st.subheader("📋 선택된 데이터")
-                    st.caption("💡 그래프에서 점을 클릭하거나 드래그로 영역을 선택하면 해당 데이터가 아래에 표시됩니다.")
-                    
-                    # 선택 이벤트 처리
-                    if event and "selection" in event:
-                        try:
-                            selection = event["selection"]
-                            point_indices = []
-                            
-                            # Plotly의 선택 데이터에서 인덱스 추출
-                            if "points" in selection:
-                                for point in selection["points"]:
-                                    # pointIndex 또는 pointNumber 사용
-                                    idx = point.get("pointIndex") or point.get("pointNumber")
-                                    if idx is not None:
-                                        point_indices.append(int(idx))
-                            
-                            if point_indices:
-                                # 중복 제거 및 정렬
-                                point_indices = sorted(set(point_indices))
-                                # 유효한 인덱스만 필터링
-                                valid_indices = [i for i in point_indices if 0 <= i < len(df_clean)]
-                                
-                                if valid_indices:
-                                    selected_rows = df_clean.iloc[valid_indices]
-                                    st.dataframe(selected_rows, use_container_width=True)
-                                    st.success(f"✅ {len(selected_rows)}개의 데이터 포인트가 선택되었습니다.")
-                                else:
-                                    st.info("📌 선택된 인덱스가 유효하지 않습니다.")
-                            else:
-                                st.info("📌 그래프에서 점을 클릭하거나 드래그로 영역을 선택해주세요.")
-                        except Exception as e:
-                            st.warning(f"⚠️ 데이터 선택 처리 중 오류: {e}")
-                            st.info("📌 그래프에서 점을 다시 선택해주세요.")
-                    else:
-                        # 대안: 수동으로 인덱스 입력받기
-                        st.markdown("**또는 수동으로 인덱스 입력:**")
-                        selected_indices_input = st.text_input(
-                            "선택할 행 인덱스 입력 (쉼표로 구분, 예: 0,5,10)",
-                            key="manual_indices",
-                            help="예: 0,5,10 또는 0-10 (범위)"
-                        )
-                        
-                        if selected_indices_input:
-                            try:
-                                indices = []
-                                # 범위 처리 (예: 0-10)
-                                if '-' in selected_indices_input and ',' not in selected_indices_input:
-                                    start, end = map(int, selected_indices_input.split('-'))
-                                    indices = list(range(start, end + 1))
-                                else:
-                                    # 쉼표로 구분된 인덱스
-                                    indices = [int(x.strip()) for x in selected_indices_input.split(',')]
-                                
-                                # 유효한 인덱스만 필터링
-                                valid_indices = [i for i in indices if 0 <= i < len(df_clean)]
-                                
-                                if valid_indices:
-                                    selected_rows = df_clean.iloc[valid_indices]
-                                    st.dataframe(selected_rows, use_container_width=True)
-                                    st.success(f"✅ {len(selected_rows)}개의 데이터 포인트가 표시되었습니다.")
-                                else:
-                                    st.warning("⚠️ 유효한 인덱스가 없습니다.")
-                            except ValueError:
-                                st.error("❌ 인덱스 형식이 올바르지 않습니다. 숫자만 입력해주세요.")
-                            except Exception as e:
-                                st.error(f"❌ 오류 발생: {e}")
-                        else:
-                            st.info("📌 그래프에서 점을 클릭하거나 드래그로 영역을 선택해주세요.")
-                else:
-                    st.warning("⚠️ 유효한 데이터가 없어 산점도를 그릴 수 없습니다.")
 
     with tab5:
         st.markdown("### 📋 데이터 확인")
